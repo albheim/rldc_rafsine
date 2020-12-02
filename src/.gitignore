@@ -1,0 +1,8 @@
+*.sw[op]
+
+*.pyc
+__pycache__/
+
+logs/
+
+.vscode/
