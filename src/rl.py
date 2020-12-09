@@ -18,12 +18,7 @@ class OUActionNoise:
 
     def __call__(self):
         # Formula taken from https://www.wikipedia.org/wiki/Ornstein-Uhlenbeck_process.
-        x = (
-            self.x_prev
-            + self.theta * (self.mean - self.x_prev) * self.dt
-            + self.std_dev * np.sqrt(self.dt) *
-            np.random.normal(size=self.mean.shape)
-        )
+        x = self.x_prev + self.theta * (self.mean - self.x_prev) * self.dt + self.std_dev * np.sqrt(self.dt) * np.random.normal(size=self.mean.shape)
         # Store x into x_prev
         # Makes next noise dependent on current one
         self.x_prev = x
@@ -127,12 +122,7 @@ def get_critic(num_states, num_actions):
 
 
 class DDPG:
-    def __init__(self, n_servers):
-        self.n_servers = n_servers
-
-        num_states = 2 * n_servers + 2
-        num_actions = n_servers + 2
-
+    def __init__(self, num_states, num_actions):
         self.ou_noise = OUActionNoise(mean=np.zeros(num_actions),
                                       std_deviation=0.05*np.ones(num_actions))
 
@@ -164,12 +154,13 @@ class DDPG:
         sampled_actions = tf.squeeze(self.actor_model(state))
         noise = self.ou_noise()
         # Adding noise to action
-        noisy_actions = sampled_actions.numpy() + noise
+        noisy_actions = sampled_actions.numpy()
+        noisy_actions[-2:] += noise[-2:]
 
         # We make sure action is within bounds
-        legal_action = np.clip(noisy_actions, lower_bound, upper_bound)
-        print(legal_action)
-        legal_action[:self.n_servers] /= np.sum(legal_action[:self.n_servers])
+        legal_action = np.clip(np.sqrt(noisy_actions), lower_bound, upper_bound)
+        legal_action[:-2] /= np.sum(legal_action[:-2])
+        #print(legal_action)
 
         return np.squeeze(legal_action)
 
