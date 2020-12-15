@@ -50,9 +50,6 @@ class SimpleDCEnv:
 
         return {"time": self.time, "jobs": self.jobs, "load": self.server_load.copy(), "in_temp": self.server_temp_out[0], "out_temp": self.server_temp_out.copy(), "cpu_temp": self.server_idle_temp_cpu * np.zeros(self.server_temp_out.shape), "crah_temp_out": self.ambient_temp, "crah_flow": np.sum(self.server_flow), "flow": self.server_flow, "compressor": 0, "ambient": self.ambient_temp, "cost": 0}
 
-    def cpu_temp(self):
-
-
     def step(self, a):
         placements, crah_temp_out_ratio, crah_flow_ratio = a
 

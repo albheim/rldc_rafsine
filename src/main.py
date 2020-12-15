@@ -40,9 +40,19 @@ for ep in range(total_episodes):
 
     #hist.append((state, a, reward))
 
+    state_arr = np.hstack(
+        (state["load"], state["out_temp"], state["jobs"], state["ambient"]))
+
+    agent.buffer.record((prev_state_arr, action, reward, state_arr))
+
+    actor_loss, critic_loss = agent.learn()
+    agent.update_targets()
+
     with summary_writer.as_default():
         tf.summary.scalar("value/reward", reward, step=ep)
         tf.summary.scalar("value/cost", state["cost"], step=ep)
+        tf.summary.scalar("loss/actor", actor_loss, step=ep)
+        tf.summary.scalar("loss/critic", critic_loss, step=ep)
         tf.summary.scalar("temperature/ambient", state["ambient"], step=ep)
         tf.summary.scalar("temperature/crahout",
                           state["crah_temp_out"], step=ep)
@@ -50,6 +60,8 @@ for ep in range(total_episodes):
         tf.summary.scalar("energy/compressor", state["energy_compressor"], step=ep)
         tf.summary.scalar("energy/server_fan", state["energy_server_fans"], step=ep)
         tf.summary.scalar("energy/crah_fan", state["energy_crah_fans"], step=ep)
+        tf.summary.scalar("energy/server_load", np.sum(state["load"]), step=ep)
+        tf.summary.scalar("energy/PUE", 1 + np.sum(state["load"]) / (state["energy_compressor"] + state["energy_server_fans"] + state["energy_crah_fans"]), step=ep)
         tf.summary.scalar("flow/crah", state["crah_flow"], step=ep)
         tf.summary.scalar("flow/servertot", np.sum(state["flow"]), step=ep)
         for i in range(dc.n_servers):
@@ -63,14 +75,6 @@ for ep in range(total_episodes):
                               state["cpu_temp"][i], step=ep)
             tf.summary.scalar("server{}/load".format(i),
                               state["load"][i], step=ep)
-
-    state_arr = np.hstack(
-        (state["load"], state["out_temp"], state["jobs"], state["ambient"]))
-
-    agent.buffer.record((prev_state_arr, action, reward, state_arr))
-
-    agent.learn()
-    agent.update_targets()
 
     prev_state_arr = state_arr
     prev_state = state

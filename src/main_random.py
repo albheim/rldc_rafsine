@@ -8,7 +8,7 @@ from rl import DDPG
 
 dc = SimpleDCEnv(n_servers=20)
 
-tag = "new_env_less_load_random_bottom_eta09"
+tag = "random_bottom_10R_eta09"
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 log_dir = 'logs/' + tag + "_" + current_time
 summary_writer = tf.summary.create_file_writer(log_dir)

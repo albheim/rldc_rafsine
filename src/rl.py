@@ -199,6 +199,7 @@ class DDPG:
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
         )
+        return actor_loss, critic_loss
 
     # We compute the loss and update parameters
     def learn(self):
@@ -214,4 +215,4 @@ class DDPG:
         reward_batch = tf.cast(reward_batch, tf.float32)
         next_state_batch = tf.convert_to_tensor(self.buffer.next_state_buffer[batch_indices])
 
-        self.update(state_batch, action_batch, reward_batch, next_state_batch)
+        return self.update(state_batch, action_batch, reward_batch, next_state_batch)
