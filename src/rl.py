@@ -158,7 +158,7 @@ class DDPG:
         noisy_actions[-2:] += noise[-2:]
 
         # We make sure action is within bounds
-        legal_action = np.clip(np.sqrt(noisy_actions), lower_bound, upper_bound)
+        legal_action = np.clip(noisy_actions, lower_bound, upper_bound)
         legal_action[:-2] /= np.sum(legal_action[:-2])
         #print(legal_action)
 

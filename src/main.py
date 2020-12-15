@@ -8,9 +8,9 @@ from rl import DDPG
 
 dc = SimpleDCEnv(n_servers=20)
 
-agent = DDPG(2 * dc.n_servers + 2, dc.n_servers + 2)
+agent = DDPG(2 * dc.n_servers + 2, 2 + 2)
 
-tag = "new_env"
+tag = "new_env_less_load_top_bot_place_rand_inside_eta09_nocrah"
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 log_dir = 'logs/' + tag + "_" + current_time
 summary_writer = tf.summary.create_file_writer(log_dir)
@@ -26,7 +26,13 @@ for ep in range(total_episodes):
 
     action = agent.policy(tf_prev_state)
     #action[-2] = 0.8
-    a = (action[:dc.n_servers], action[-2], action[-1])
+
+    tot_flow = np.sum(prev_state["flow"]) * 0.9
+    flow_ratio = np.clip((tot_flow - dc.crah_min_flow) / (dc.crah_max_flow - dc.crah_min_flow), 0, 1)
+
+    placements = np.random.choice(range(2), p=action[:-2], size=prev_state["jobs"])
+    a = (placements * dc.n_servers // 2 + np.random.randint(dc.n_servers // 2, size=prev_state["jobs"]), 0.5, flow_ratio)
+    #a = (placements * dc.n_servers // 2 + np.random.randint(dc.n_servers // 2, size=prev_state["jobs"]), action[-2], action[-1])
     # Recieve state and reward from environment.
     #crah_flow = np.sum(prev_state["flow"])
     #a = [a, (17 - 10) / 15, (crah_flow - dc.crah_min_flow) / (dc.crah_max_flow - dc.crah_min_flow)]

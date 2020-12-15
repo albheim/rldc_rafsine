@@ -18,20 +18,21 @@ class SimpleDCEnv:
 
         self.ambient_temp = 15
 
-        self.job_time = 100
-        self.job_rate = 10
-        self.job_load = 30
+        self.job_time = 1000
+        self.job_rate = 1
+        self.job_load = 20
 
         n = self.n_servers // 2
-        self.reflow_vector = np.zeros(self.n_servers)
-        self.reflow_vector[:n] = 1.5
-        self.reflow_vector[n:] = 0.5
+        mu = 0.9
+        self.reflow_vector = np.ones(self.n_servers)
+        self.reflow_vector[:n] += mu
+        self.reflow_vector[n:] -= mu
 
-        self.air_vol_heatcap = (1000 * 1.225)
+        self.air_vol_heatcap = (1000 * 1.225) # J/(m^3 K)
         # Ratio between air and water heat capacity adjusted for volume instead of mass
         self.fixed_heatcap_ratio = (1000 * 1.225) / (4200 * 997)
 
-        self.R = 0.002  # TODO totally made up value, check what is reasonable
+        self.R = 0.02  # TODO totally made up value, check what is reasonable
 
         self.reset()
 
@@ -49,8 +50,11 @@ class SimpleDCEnv:
 
         return {"time": self.time, "jobs": self.jobs, "load": self.server_load.copy(), "in_temp": self.server_temp_out[0], "out_temp": self.server_temp_out.copy(), "cpu_temp": self.server_idle_temp_cpu * np.zeros(self.server_temp_out.shape), "crah_temp_out": self.ambient_temp, "crah_flow": np.sum(self.server_flow), "flow": self.server_flow, "compressor": 0, "ambient": self.ambient_temp, "cost": 0}
 
+    def cpu_temp(self):
+
+
     def step(self, a):
-        placement_prob, crah_temp_out_ratio, crah_flow_ratio = a
+        placements, crah_temp_out_ratio, crah_flow_ratio = a
 
         crah_temp_out = 18 + 27 * crah_temp_out_ratio
         crah_flow = self.crah_min_flow + (self.crah_max_flow - self.crah_min_flow) * crah_flow_ratio
@@ -58,7 +62,6 @@ class SimpleDCEnv:
         self.ambient_temp = np.sin(self.time / (60*60*24) * 2*np.pi) * 5 + 15
 
         # Place jobs and remove finished jobs
-        placements = np.random.choice(self.n_servers, p=placement_prob, size=self.jobs)
         for i in range(self.jobs):                
             self.server_load[placements[i]] += self.job_load
 
@@ -71,12 +74,12 @@ class SimpleDCEnv:
         server_temp_out = np.dot(self.server_temp_out,
                                  self.server_flow) / server_flow_total
         if server_flow_total > crah_flow:
-            # Reflow to server, some servers get hotter air
+            # Recirculation to server, some servers get hotter air
             crah_temp_in = server_temp_out
             eta = crah_flow / server_flow_total
             self.server_temp_in = eta * crah_temp_out + self.reflow_vector * (1 - eta) * server_temp_out
         else:
-            # Reflow to crah
+            # Bypass to crah
             self.server_temp_in[:] = crah_temp_out
             eta = server_flow_total / crah_flow
             crah_temp_in = (1 - eta) * crah_temp_out + eta * server_temp_out
