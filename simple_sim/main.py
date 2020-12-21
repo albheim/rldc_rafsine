@@ -54,8 +54,7 @@ for ep in range(total_episodes):
         tf.summary.scalar("loss/actor", actor_loss, step=ep)
         tf.summary.scalar("loss/critic", critic_loss, step=ep)
         tf.summary.scalar("temperature/ambient", state["ambient"], step=ep)
-        tf.summary.scalar("temperature/crahout",
-                          state["crah_temp_out"], step=ep)
+        tf.summary.scalar("temperature/crahout", state["crah_temp_out"], step=ep)
         tf.summary.scalar("jobs", state["jobs"], step=ep)
         tf.summary.scalar("energy/compressor", state["energy_compressor"], step=ep)
         tf.summary.scalar("energy/server_fan", state["energy_server_fans"], step=ep)
@@ -65,16 +64,12 @@ for ep in range(total_episodes):
         tf.summary.scalar("flow/crah", state["crah_flow"], step=ep)
         tf.summary.scalar("flow/servertot", np.sum(state["flow"]), step=ep)
         for i in range(dc.n_servers):
-            tf.summary.scalar("server{}/flow".format(i),
-                              state["flow"][i], step=ep)
-            tf.summary.scalar("server{}/tempcpu".format(i),
-                              state["out_temp"][i], step=ep)
-            tf.summary.scalar("server{}/tempin".format(i), 
-                              state["in_temp"][i], step=ep)
-            tf.summary.scalar("server{}/tempout".format(i),
-                              state["cpu_temp"][i], step=ep)
-            tf.summary.scalar("server{}/load".format(i),
-                              state["load"][i], step=ep)
+            tf.summary.scalar("server{}/flow".format(i), state["flow"][i], step=ep)
+            tf.summary.scalar("server{}/tempcpu".format(i), state["out_temp"][i], step=ep)
+            tf.summary.scalar("server{}/tempin".format(i), state["in_temp"][i], step=ep)
+            tf.summary.scalar("server{}/tempout".format(i), state["cpu_temp"][i], step=ep)
+            tf.summary.scalar("server{}/load".format(i), state["load"][i], step=ep)
+            tf.summary.scalar("server{}/cpusetpoint".format(i), state["cpu_setpoint"][i], step=ep)
 
     prev_state_arr = state_arr
     prev_state = state

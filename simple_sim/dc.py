@@ -18,21 +18,15 @@ class SimpleDCEnv:
 
         self.ambient_temp = 15
 
-        self.job_time = 1000
+        self.job_time = 200
         self.job_rate = 1
         self.job_load = 20
-
-        n = self.n_servers // 2
-        mu = 0.9
-        self.reflow_vector = np.ones(self.n_servers)
-        self.reflow_vector[:n] += mu
-        self.reflow_vector[n:] -= mu
 
         self.air_vol_heatcap = (1000 * 1.225) # J/(m^3 K)
         # Ratio between air and water heat capacity adjusted for volume instead of mass
         self.fixed_heatcap_ratio = (1000 * 1.225) / (4200 * 997)
 
-        self.R = 0.02  # TODO totally made up value, check what is reasonable
+        self.R = 0.002  # TODO totally made up value, check what is reasonable
 
         self.reset()
 
@@ -73,8 +67,8 @@ class SimpleDCEnv:
         if server_flow_total > crah_flow:
             # Recirculation to server, some servers get hotter air
             crah_temp_in = server_temp_out
-            eta = crah_flow / server_flow_total
-            self.server_temp_in = eta * crah_temp_out + self.reflow_vector * (1 - eta) * server_temp_out
+            gamma = crah_flow / server_flow_total
+            self.server_temp_in = gamma * crah_temp_out + (1 - gamma) * server_temp_out + np.zeros(self.n_servers)
         else:
             # Bypass to crah
             self.server_temp_in[:] = crah_temp_out
@@ -103,7 +97,7 @@ class SimpleDCEnv:
         state = {"time": self.time, "jobs": self.jobs, "load": np.copy(self.server_load), 
                  "in_temp": np.copy(self.server_temp_in), "out_temp": np.copy(self.server_temp_out), 
                  "cpu_temp": np.copy(server_temp_cpu), "crah_flow": crah_flow, "crah_temp_out": crah_temp_out, 
-                 "flow": np.copy(self.server_flow), "ambient": self.ambient_temp, "cost": cost,
+                 "flow": np.copy(self.server_flow), "ambient": self.ambient_temp, "cost": cost, "cpu_setpoint": server_temp_set,
                  "energy_server_fans": server_fan_energy, "energy_crah_fans": crah_fan_energy, "energy_compressor": compressor}
 
 
