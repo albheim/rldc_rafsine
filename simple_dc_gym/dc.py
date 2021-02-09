@@ -21,8 +21,8 @@ class SimpleDCEnv:
 
         self.ambient_temp = 22
 
-        self.job_time = 10#200
-        self.job_rate = 1#n_servers / 40 # Just tested to be around a nice number
+        self.job_time = 200
+        self.job_rate = n_servers / 30 # Just tested to be around a nice number
         self.job_load = 20
 
         self.air_vol_heatcap = (1000 * 1.225) # J/(m^3 K)
@@ -41,7 +41,8 @@ class SimpleDCEnv:
 
         self.job_queue = [[] for i in range(self.job_time)]
 
-        self.jobs = np.random.poisson(self.job_rate)
+        #self.jobs = np.random.poisson(self.job_rate)
+        self.jobs = 1 if np.random.rand() < self.job_rate else 0
 
         self.time = 0
 
@@ -97,7 +98,7 @@ class SimpleDCEnv:
         self.server_flow = np.clip(self.server_flow * server_temp_cpu / server_temp_set, self.server_idle_flow, self.server_max_flow)
         self.server_temp_out = self.server_temp_in + self.server_load / (self.server_flow * self.air_vol_heatcap)
 
-        self.jobs = 1#np.random.poisson(self.job_rate) 
+        self.jobs = 1 if np.random.rand() < self.job_rate else 0
 
         server_fan_energy = np.sum(self.server_max_fan_power * (self.server_flow / self.server_max_flow)**3)
         crah_fan_energy = self.crah_max_power * (crah_flow / self.crah_max_flow)**3 
@@ -105,7 +106,7 @@ class SimpleDCEnv:
         cost = server_fan_energy + crah_fan_energy + compressor
         state = {"time": self.time, "jobs": self.jobs, "load": np.copy(self.server_load), 
                  "in_temp": np.copy(self.server_temp_in), "out_temp": np.copy(self.server_temp_out), 
-                 "cpu_temp": np.copy(server_temp_cpu), "crah_flow": crah_flow, "crah_temp_out": crah_temp_out, 
+                 "cpu_temp": np.copy(server_temp_cpu), "crah_flow": crah_flow, "crah_temp_out": crah_temp_out, "crah_temp_in": crah_temp_in,
                  "flow": np.copy(self.server_flow), "ambient": self.ambient_temp, "cost": cost, "cpu_setpoint": server_temp_set,
                  "energy_server_fans": server_fan_energy, "energy_crah_fans": crah_fan_energy, "energy_compressor": compressor}
 
