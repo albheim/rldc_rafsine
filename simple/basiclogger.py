@@ -37,7 +37,7 @@ class MyCallbacks(DefaultCallbacks):
         print(env.time)
 
         s = episode.last_observation_for()
-        job = s[-1]
+        # job = s[-1]
         s = s[:-1]
         s = ((env.shigh - env.slow) * s + env.slow + env.shigh) / 2
 
