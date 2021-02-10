@@ -3,7 +3,7 @@ import argparse
 import ray
 import ray.tune as tune
 
-from wrapper import SimpleDCEnvGymWrapper
+from dc import SimpleDCEnv
 #from tblogger import TBStateLoggerCallback
 from basiclogger import MyCallbacks
 
@@ -19,7 +19,7 @@ args = parser.parse_args()
 
 ray.init()
 
-ray.tune.register_env("SimpleDCEnv", SimpleDCEnvGymWrapper)
+ray.tune.register_env("SimpleDCEnv", SimpleDCEnv)
 
 config = {
     "env": "SimpleDCEnv",

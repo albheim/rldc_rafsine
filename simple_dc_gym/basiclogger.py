@@ -29,15 +29,16 @@ class MyCallbacks(DefaultCallbacks):
         # sfix = ((env.shigh - env.slow) * s + env.slow + env.shigh) / 2
 
         # episode.user_data["states"].append(sfix)
-        # dcenv.dcenv.somestate  <-- first is wrapper, second is real env
 
     def on_episode_end(self, *, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        env_index: int, **kwargs):
         env = base_env.get_unwrapped()[0]
-        print(env.dcenv.time)
+        print(env.time)
 
         s = episode.last_observation_for()
+        job = s[-1]
+        s = s[:-1]
         s = ((env.shigh - env.slow) * s + env.slow + env.shigh) / 2
 
         nstate = len(s) // 3
@@ -46,11 +47,11 @@ class MyCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"srv{i}/flow"] = s[nstate + i] 
             episode.custom_metrics[f"srv{i}/load"] = s[2 * nstate + i] 
 
-            episode.custom_metrics[f"srv{i}/temp_cpu"] = env.dcenv.server_temp_cpu[i]
+            episode.custom_metrics[f"srv{i}/temp_cpu"] = env.server_temp_cpu[i]
 
         
-        episode.custom_metrics[f"crah/temp_out"] = env.a2[0]
-        episode.custom_metrics[f"crah/flow"] = env.a2[1]
+        episode.custom_metrics[f"crah/temp_out"] = env.action[1][0]
+        episode.custom_metrics[f"crah/flow"] = env.action[1][1]
         # episode.hist_data["pole_angles"] = episode.user_data["pole_angles"]
 
     def on_sample_end(self, *, worker: RolloutWorker, samples: SampleBatch,
