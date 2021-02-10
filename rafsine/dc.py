@@ -1,5 +1,7 @@
+RAFSINE_BASE = "/home/ubuntu/rafsine"
+
 import sys
-sys.path.append("/home/ubuntu/rafsine")
+sys.path.insert(0, RAFSINE_BASE)
 
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, Flatten
@@ -23,11 +25,12 @@ class DCEnv:
 
         self.seed = 37
 
-        self.job_rate = 10
-        self.job_power = 50
-        self.job_duration = 5
-        self.max_load = 10000 # Max kW per server
+        self.job_rate = 0.1
+        self.job_power = 20
+        self.job_duration = 200
+        self.max_load = 500 # Max W per server
         self.rpm = 2000
+        self.idle_load = 100
 
         # Kinematic viscosity of air (m^2/s)
         self.nu = 1.568e-5
@@ -67,24 +70,25 @@ class DCEnv:
         N = Nmin + (Nmax - Nmin) * Tcpu / Tdes
         Q = Qmax * N / Nmax
         P = Pmax * (N / Nmax)**3
-
+    
     def reset(self):
-        self.loads = [45 for _ in range(len(self.servers))]
+        self.loads = [self.idle_load for _ in range(len(self.servers))]
         self.vol_flows = [self.rpm * self.Q_per_RPM for _ in range(0, len(self.servers))]
         self.event_queue = []
         
-        self.n_jobs = 0
-
         self.rng = np.random.default_rng(self.seed)
 
-        self.sim = Simulation(f'{os.getcwd()}/problems/ocp/project.lbm')
+        cwd = os.getcwd()
+        os.chdir(RAFSINE_BASE)
+        self.sim = Simulation(f"{RAFSINE_BASE}/problems/ocp/project.lbm")
+        os.chdir(cwd)
         self.start_time = self.sim.get_time()
         self.target_time = 0
-        self.sim.set_time_averaging_period(5)
+        self.sim.set_time_averaging_period(1) # we take one second steps and average sensor readings over that time also
 
         self.sim.set_boundary_conditions(self.servers, [40 for _ in self.vol_flows], self.vol_flows)
 
-        return {"time": self.get_time(), "temps":np.zeros(len(self.sensors)), "loads":np.copy(self.loads), "jobs":self.n_jobs}
+        return {"time": self.get_time(), "temps":np.zeros(len(self.sensors)), "loads":np.copy(self.loads)}
     
     # Calculate the expected temperature jump across the servers (convert to kW)
     def deltaT(self, p, q):
@@ -96,13 +100,11 @@ class DCEnv:
     def get_time(self):
         return (self.sim.get_time() - self.start_time).total_seconds()
 
-    def step(self, placements, dt=1):
-        assert(len(placements) == self.n_jobs)
-
+    def step(self, job, dt=1):
         self.target_time += dt
 
-        for idx in placements:
-            self.queue_load(idx, self.job_power, self.get_time(), self.job_duration)
+        placement, (load, duration) = job
+        self.queue_load(placement, load, self.get_time(), duration)
         
         start_time = self.get_time()
         jobs_done = []
@@ -122,9 +124,8 @@ class DCEnv:
         if self.target_time > self.get_time():
             self.sim.run(self.target_time - self.get_time())
 
-        self.n_jobs = self.rng.poisson(self.job_rate * (self.get_time() - start_time))
         temps = self.get_temps()
-        state = {"time": self.get_time(), "temps":temps, "loads":np.copy(self.loads), "jobs":self.n_jobs}
+        state = {"time": self.get_time(), "temps":temps, "loads":np.copy(self.loads)}
         split_idx = len(self.sensors) // 2
         reward = -(np.var(temps[:split_idx]) + np.var(temps[split_idx:])) # Check variance of inlets and outlets seperately
         return state, reward
