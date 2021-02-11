@@ -1,0 +1,61 @@
+temp_cpu = temp_in + R * power / flow              -             T / kg*s^2 * m^2= R  
+R = (temp_cpu - temp_in) * flow / power 
+R = (85-20)*0.1/500 = 0.013
+R = (35-20)*0.01/200 = 0.00075
+
+Jag stänger av water flow om generator går igång, kolla energi distribution mellan server fan, crah fan, water pump och generator?
+
+crah 18-27 grader
+öka till 1000 server
+parametrisera actions till högt mellan lågt och ha round robin inom
+
+testa enklare modell?
+
+testa round robin scheduler och bara låta rl ta hand om CRAH?
+
+
+completely random use more flow than top/bot random, but still cost less... no generator cost so should not be possible?
+
+top/bot random seems to hit fan limits, maybe that affects, but still should not have more total flow and less cost...
+
+not weird, we are looking at total flow. since we have cube law and half are higher/half lower that will be higher power but still lower flow
+
+# Nytt
+Hittat problemet med högre uttemp (pinsamt...)
+Tagit bort uppdelning av uppe och nere i racks, fel matematik...
+Försökt köra en lite längre sim, ser inte så bra ut. Loss divergerar, skall undersökas.
+Ny tanke om hur designa modulär server scoring för att bestämma lastbalansering.
+Testa med mjukare? Samma problem som i service mesh, när den ökar ser man mer direkt kostnaden för att fläkta mer pga temp höjning än man ser värdet att komma upp mot ambient temp. Mjuk bör hjälpa lite i alla fall.
+Kör att kompressor kostar diffen mellan ambient temp och crah out temp
+
+# Rickard svar
+Förstår inte riktigt, försöker du lösa steady state ekvationer för varje ny pSRV och TCRAHout?
+Jag tänker mig att vi har diskreta steg som vi simulerar, vid tiden t så använder vi värden från t-1
+
+# Notes
+Har kört med färre servrar (4 st servrar blir typ samma som som 100 uppdelat i 4 zoner som vi kan placera i)
+Börjat på Conv1D implementering, ett filter som convar över alla servrarna och avgör en placement score, slumpa vilken server det blir baserat på scores
+Kolla att VNC funkar, RL api 
+Kolla konf
+
+# Q-hist
+I believe much of the instability comes from the Q function not beeing stable, so one way I thought of to stabilize the update is to 
+instead approximate it with Markov exploration kind of
+
+# Load distribution
+let action be desired load dist isntead of load, and placement will be done to get as close as possible to that
+
+
+# TODO
+Behöve bättre cpu fan modellering och CRAH modellering för Johannes
+Förenklat arrivals till en per tid (enklare), hur hantera mer jobbig?
+Johannes vad för cuda är installerat? Lite men inte tillräckligt för tf
+Mer likt rickards?
+tf/ray problem  med GPU
+tell it to say distribution and manually place to fit distribution
+
+
+Skriv matematiskt simple modell
+testa tf install på johannes
+testa mot lite smartare modell?
+implementera korrekt tidsstegning
