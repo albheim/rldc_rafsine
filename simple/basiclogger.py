@@ -37,19 +37,19 @@ class MyCallbacks(DefaultCallbacks):
         print(env.time)
 
         s = episode.last_observation_for()
-        # job = s[-1]
-        s = s[:-1]
         s = ((env.shigh - env.slow) * s + env.slow + env.shigh) / 2
-
-        nstate = len(s) // 3
-        for i in range(nstate):
+        
+        for i in range(env.n_servers):
             episode.custom_metrics[f"srv{i}/temp_out"] = s[i] 
-            episode.custom_metrics[f"srv{i}/flow"] = s[nstate + i] 
-            episode.custom_metrics[f"srv{i}/load"] = s[2 * nstate + i] 
+            episode.custom_metrics[f"srv{i}/flow"] = s[env.n_servers + i] 
+            episode.custom_metrics[f"srv{i}/load"] = s[2 * env.n_servers + i] 
 
             episode.custom_metrics[f"srv{i}/temp_cpu"] = env.server_temp_cpu[i]
 
         
+        episode.custom_metrics[f"job/load"] = s[-2]
+        episode.custom_metrics[f"job/duration"] = s[-1]
+
         episode.custom_metrics[f"crah/temp_out"] = env.action[1][0]
         episode.custom_metrics[f"crah/flow"] = env.action[1][1]
         # episode.hist_data["pole_angles"] = episode.user_data["pole_angles"]

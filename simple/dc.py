@@ -2,6 +2,7 @@ import numpy as np
 import gym
 import heapq
 
+from job import RandomArrival
 class SimpleDCEnv(gym.Env):
     def __init__(self, config):
         self.n_servers = config["n_servers"]
@@ -29,6 +30,7 @@ class SimpleDCEnv(gym.Env):
         self.job_time = 200
         self.job_rate = self.n_servers / 30 # Just tested to be around a nice number
         self.job_load = 20
+        self.job_generator = RandomArrival(self.job_load, self.job_time, self.job_rate)
 
         # Physical constants
         self.air_vol_heatcap = (1000 * 1.225) # J/(m^3 K)
@@ -38,7 +40,7 @@ class SimpleDCEnv(gym.Env):
         self.action_space = gym.spaces.Tuple(
             (gym.spaces.Discrete(self.n_servers), 
             gym.spaces.Box(-1.0, 1.0, shape=(2,))))
-        self.observation_space = gym.spaces.Box(-100.0, 100.0, shape=(1 + 3 * self.n_servers,))
+        self.observation_space = gym.spaces.Box(-100.0, 100.0, shape=(2 + 3 * self.n_servers,))
 
         # Used for rescaling
         self.alow = np.array([self.crah_min_temp, self.crah_min_flow])
@@ -46,25 +48,26 @@ class SimpleDCEnv(gym.Env):
         self.slow = np.concatenate(
             (self.ambient_temp * np.ones(self.n_servers),
             self.server_idle_flow * np.ones(self.n_servers),
-            self.server_idle_load * np.ones(self.n_servers)))
+            self.server_idle_load * np.ones(self.n_servers),
+            (0, 0)))
         self.shigh = np.concatenate(
             (self.server_max_temp_cpu * np.ones(self.n_servers),
             self.server_max_flow * np.ones(self.n_servers),
-            self.server_max_load * np.ones(self.n_servers)))
+            self.server_max_load * np.ones(self.n_servers),
+            (self.job_load, self.job_time)))
 
     def action_transform(self, action):
         a1, a2 = action
         # a1 = np.random.randint(self.n_servers)
-        a1 = (a1, self.job_load, self.job_time)
         a2 = (a2 * (self.ahigh - self.alow) + self.ahigh + self.alow) / 2
         a2 = np.clip(a2, self.alow, self.ahigh)
         self.action = (a1, a2) # Save for plotting
         return self.action
     
     def state_transform(self, state):
-        s = np.concatenate((state["out_temp"], state["flow"], state["load"]))
+        s = np.concatenate((state["out_temp"], state["flow"], state["load"], state["jobs"]))
         s = (2 * s - self.slow - self.shigh) / (self.shigh - self.slow)
-        return np.concatenate((s, [state["jobs"] - 0.5]))
+        return s
 
     def reset(self):
         # States
@@ -79,8 +82,7 @@ class SimpleDCEnv(gym.Env):
         # Reset other stuff
         self.running_jobs = []
 
-        #self.jobs = np.random.poisson(self.job_rate)
-        self.jobs = 1 if np.random.rand() < self.job_rate else 0
+        self.jobs = self.job_generator.step()
 
         self.time = 0
 
@@ -88,21 +90,22 @@ class SimpleDCEnv(gym.Env):
         return self.state_transform(state)
 
     def step(self, a):
-        job, crah = self.action_transform(a)
+        placement, crah = self.action_transform(a)
 
         # Set CRAH
         crah_temp_out = crah[0]
         crah_flow = crah[1]
 
         # Place jobs and remove finished jobs
-        srvidx, load, dur = job # Always here, but load and dur is zero if no job
-        self.server_load[srvidx] += load
-        heapq.heappush(self.running_jobs, (self.time + dur, load, srvidx))
+        load, dur = self.jobs # Always here, but load and dur is zero if no job
+        self.server_load[placement] += load
+        heapq.heappush(self.running_jobs, (self.time + dur, load, placement))
         while len(self.running_jobs) > 0 and self.running_jobs[0][0] <= self.time:
-            _, load, srvidx = heapq.heappop(self.running_jobs)
-            self.server_load[srvidx] -= load
+            _, load, placement = heapq.heappop(self.running_jobs)
+            self.server_load[placement] -= load
 
-        #self.ambient_temp = np.sin(self.time / (60*60*24) * 2*np.pi) * 5 + 15
+        # Vary ambient temp during day between 10 and 20 C
+        self.ambient_temp = np.sin(self.time / (60*60*24) * 2*np.pi) * 5 + 15
 
         # Temp vars
         server_flow_total = np.sum(self.server_flow)
@@ -137,7 +140,7 @@ class SimpleDCEnv(gym.Env):
         # Sigmoid compressor
         # compressor = 1 / (1 + np.exp(-(self.ambient_temp - crah_temp_out) / 5)) * (self.ambient_temp - crah_temp_out) * self.air_vol_heatcap * crah_flow
 
-        self.jobs = 1 if np.random.rand() < self.job_rate else 0 # Should maybe generate a load and a duration that is 0,0 if no job
+        self.jobs = self.job_generator.step()
 
         server_fan_energy = np.sum(self.server_max_fan_power * (server_flow / self.server_max_flow)**3)
         crah_fan_energy = self.crah_max_power * (crah_flow / self.crah_max_flow)**3 
