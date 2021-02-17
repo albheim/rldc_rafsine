@@ -3,8 +3,8 @@ import argparse
 import ray
 import ray.tune as tune
 
-from wrapper import DCEnvGymWrapper
-#from basiclogger import MyCallbacks
+from dc import DCEnv
+from basiclogger import LoggingCallbacks
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", type=str, default="PPO")
@@ -18,18 +18,19 @@ args = parser.parse_args()
 
 ray.init()
 
-ray.tune.register_env("DCEnv", DCEnvGymWrapper)
+ray.tune.register_env("DCEnv", DCEnv)
 
 config = {
     "env": "DCEnv",
-    #"callbacks": MyCallbacks,
+    "callbacks": LoggingCallbacks,
     "num_workers": 1,
     "num_gpus_per_worker": 1,
-    "horizon": 1000,
-    "vf_clip_param": 1000.0,
+    "horizon": 100,
     "soft_horizon": True,
+    "vf_clip_param": 10.0,
+    #"observation_filter": "MeanStdFilter", # Test this
     "env_config": {
-        #"n_servers": 20,
+        "dt": 1
     },
 }
 
@@ -40,7 +41,6 @@ stop = {
 }
 
 callbacks = [
-    # MyCallbacks(),
 ]
 
 results = tune.run(args.run, config=config, callbacks=callbacks, stop=stop, verbose=1)
