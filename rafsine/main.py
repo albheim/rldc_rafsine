@@ -21,17 +21,28 @@ ray.init()
 ray.tune.register_env("DCEnv", DCEnv)
 
 config = {
+    # Environment
     "env": "DCEnv",
-    "callbacks": LoggingCallbacks,
-    "num_workers": 1,
-    "num_gpus_per_worker": 1,
-    "horizon": 100,
-    "soft_horizon": True,
-    "vf_clip_param": 10.0,
-    #"observation_filter": "MeanStdFilter", # Test this
     "env_config": {
         "dt": 1
     },
+
+    # Worker setup
+    "num_workers": 1,
+    "num_gpus_per_worker": 1,
+
+    # For logging (does soft_horizon do more, not sure...)
+    "callbacks": LoggingCallbacks,
+    "soft_horizon": True,
+    "no_done_at_end": True,
+    "horizon": 100, # This sets how often stuff is sampled for the avg/min/max logging
+    "train_batch_size": 1000, # This sets how often stuff is logged
+
+    # Agent settings
+    "vf_clip_param": 10.0,
+
+    # Data settings
+    #"observation_filter": "MeanStdFilter", # Test this
 }
 
 stop = {

@@ -14,9 +14,6 @@ class LoggingCallbacks(DefaultCallbacks):
                          policies: Dict[str, Policy],
                          episode: MultiAgentEpisode, env_index: int, **kwargs):
         pass
-    def on_episode_step(self, *, worker: RolloutWorker, base_env: BaseEnv,
-                        episode: MultiAgentEpisode, env_index: int, **kwargs):
-        pass
     def on_sample_end(self, *, worker: RolloutWorker, samples: SampleBatch,
                       **kwargs):
         pass
@@ -32,26 +29,43 @@ class LoggingCallbacks(DefaultCallbacks):
     def on_episode_end(self, *, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        env_index: int, **kwargs):
+        pass
+    def on_episode_step(self, *, worker: RolloutWorker, base_env: BaseEnv,
+                        episode: MultiAgentEpisode, env_index: int, **kwargs):
         env = base_env.get_unwrapped()[0]
-        print("Logging at env time {}".format(env.get_time()))
 
-        s = episode.last_observation_for()
-        s = ((env.shigh - env.slow) * s + env.slow + env.shigh) / 2
+        # To allow all vars to init
+        if env.get_time() == 0:
+            return
+
+        print("Logging at env time {}".format(env.get_time()))
 
         # Log server
         for i in range(env.n_servers):
             episode.custom_metrics[f"srv{i}/load"] = env.server_load[i]
+            episode.custom_metrics[f"srv{i}/flow"] = env.server_flow[i]
             episode.custom_metrics[f"srv{i}/temp_in"] = env.server_temp_in[i]
             episode.custom_metrics[f"srv{i}/temp_out"] = env.server_temp_out[i]
-            episode.custom_metrics[f"srv{i}/flow"] = env.server_flow[i]
+            episode.custom_metrics[f"srv{i}/temp_cpu"] = env.server_temp_cpu[i]
 
-        episode.custom_metrics[f"job/load"] = s[-2]
-        episode.custom_metrics[f"job/dur"] = s[-1]
+        for i in range(len(env.crah)):
+            episode.custom_metrics[f"crah{i}/temp_in"] = env.crah_temp_in[i]
+            episode.custom_metrics[f"crah{i}/temp_out"] = env.crah_temp_out[i]
+            episode.custom_metrics[f"crah{i}/flow"] = env.crah_flow[i]
 
-        episode.custom_metrics[f"crah/temp_in"] = np.sum(env.crah_temp_in) / len(env.crah_temp_in)
-        episode.custom_metrics[f"crah/temp_out"] = env.crah_temp_out
-        episode.custom_metrics[f"crah/flow"] = env.crah_flow
+        episode.custom_metrics[f"job/dur"] = env.job[0]
+        episode.custom_metrics[f"job/load"] = env.job[1]
+
+        # Should be 0 with the drop instead of delay?
+        episode.custom_metrics[f"job/queue"] = len(env.event_queue)
+
+        episode.custom_metrics[f"other/ambient_temp"] = env.ambient_temp
+        episode.custom_metrics[f"other/server_flow"] = np.sum(env.server_flow)
 
         episode.custom_metrics[f"power/crah_fan"] = env.crah_fan_power
         episode.custom_metrics[f"power/server_fan"] = env.server_fan_power
         episode.custom_metrics[f"power/compressor"] = env.compressor_power
+
+        episode.custom_metrics[f"cost/energy"] = env.total_energy_cost
+        episode.custom_metrics[f"cost/delay"] = env.total_job_drop_cost
+        
