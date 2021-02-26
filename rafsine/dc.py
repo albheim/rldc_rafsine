@@ -7,6 +7,7 @@ import os
 import heapq
 import numpy as np
 import gym
+import time
 
 RAFSINE_BASE = "/home/ubuntu/rafsine"
 import sys
@@ -138,6 +139,7 @@ class DCEnv(gym.Env):
     def step(self, action):
         placement, crah_settings = action
         #print("CRAH settings: ", crah_settings)
+        print("Step 1: ", time.time())
 
         load, duration = self.job
 
@@ -146,15 +148,18 @@ class DCEnv(gym.Env):
 
         # Read new data from sim
         self.read_data()
+        print("Step 2: ", time.time())
         
         # Update CPU fans
         self.update_server()
 
         # Update CRAH fans
         self.update_crah(self.action_transform(crah_settings))
+        print("Step 3: ", time.time())
 
         # Place jobs in queue
         self.queue_load(placement, load, self.get_time(), duration)
+        print("Step 4: ", time.time())
 
         self.dropped_jobs = 0
         
@@ -174,6 +179,7 @@ class DCEnv(gym.Env):
                 self.dropped_jobs += 1
         if self.target_time > self.get_time():
             self.sim.run(self.target_time - self.get_time())
+        print("Step 5: ", time.time())
 
         # Get new job, tuple of expected (load, duration)
         self.job = self.load_generator.step(self.dt)
