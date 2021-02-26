@@ -30,6 +30,7 @@ config = {
     # Worker setup
     "num_workers": 1,
     "num_gpus_per_worker": 1,
+    "num_cpus_per_worker": 4, # Does this make any difference?
 
     # For logging (does soft_horizon do more, not sure...)
     "callbacks": LoggingCallbacks,
