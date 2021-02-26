@@ -58,6 +58,7 @@ class LoggingCallbacks(DefaultCallbacks):
 
         # Should be 0 with the drop instead of delay?
         episode.custom_metrics[f"job/queue"] = len(env.event_queue)
+        episode.custom_metrics[f"job/dropped"] = len(env.dropped_jobs)
 
         episode.custom_metrics[f"other/ambient_temp"] = env.ambient_temp
         episode.custom_metrics[f"other/server_flow"] = np.sum(env.server_flow)
@@ -67,5 +68,5 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics[f"power/compressor"] = env.compressor_power
 
         episode.custom_metrics[f"cost/energy"] = env.total_energy_cost
-        episode.custom_metrics[f"cost/delay"] = env.total_job_drop_cost
+        episode.custom_metrics[f"cost/dropped"] = env.total_job_drop_cost
         
