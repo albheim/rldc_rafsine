@@ -23,3 +23,14 @@ class SinusLoad:
     def step(self, dt):
         self.time += dt
         return (self.get_load() * dt, self.duration)
+
+class RandomArrival:
+    def __init__(self, load, duration, p):
+        self.load = load
+        self.duration = duration
+        self.p = p
+    def step(self, dt):
+        if np.random.rand() < self.p:
+            return self.load * dt, self.duration
+        else:
+            return 0, 0

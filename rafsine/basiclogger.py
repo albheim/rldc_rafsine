@@ -48,7 +48,7 @@ class LoggingCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"srv{i}/temp_out"] = env.server_temp_out[i]
             episode.custom_metrics[f"srv{i}/temp_cpu"] = env.server_temp_cpu[i]
 
-        for i in range(len(env.crah)):
+        for i in range(env.n_crah):
             episode.custom_metrics[f"crah{i}/temp_in"] = env.crah_temp_in[i]
             episode.custom_metrics[f"crah{i}/temp_out"] = env.crah_temp_out[i]
             episode.custom_metrics[f"crah{i}/flow"] = env.crah_flow[i]
@@ -57,8 +57,8 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics[f"job/load"] = env.job[1]
 
         # Should be 0 with the drop instead of delay?
-        episode.custom_metrics[f"job/queue"] = len(env.event_queue)
-        episode.custom_metrics[f"job/dropped"] = len(env.dropped_jobs)
+        episode.custom_metrics[f"job/running"] = len(env.running_jobs)
+        episode.custom_metrics[f"job/dropped"] = env.dropped_jobs
 
         episode.custom_metrics[f"other/ambient_temp"] = env.ambient_temp
         episode.custom_metrics[f"other/server_flow"] = np.sum(env.server_flow)

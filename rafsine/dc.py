@@ -22,7 +22,7 @@ class DCEnv(gym.Env):
         self.dt = config.get("dt", 1)
         self.seed = config.get("seed", 37)
         self.energy_cost = config.get("energy_cost", 0.00001)
-        self.job_drop_cost = config.get("job_drop_cost", 1.0)
+        self.job_drop_cost = config.get("job_drop_cost", 10.0)
 
         # Server layout
         self.racks = 12
@@ -43,6 +43,8 @@ class DCEnv(gym.Env):
         # Jobs
         # 360 servers with 200 idle load makes this on average put 450 load on each server out of 500 max
         #self.load_generator = ConstantArrival(load=25, duration=3600)
+        self.job_load = 15
+        self.job_time = 3600
         self.load_generator = ConstantArrival(load=15, duration=3600)
 
         # Gym environment stuff
@@ -55,7 +57,7 @@ class DCEnv(gym.Env):
         self.alow = np.array((self.crah_min_flow, self.crah_min_temp))
         self.ahigh = np.array((self.crah_max_flow, self.crah_max_temp))
         self.slow = np.concatenate((20 * np.ones(self.n_servers), self.server_idle_load * np.ones(self.n_servers), [0, 0]))
-        self.shigh = np.concatenate((80 * np.ones(self.n_servers), self.server_max_load * np.ones(self.n_servers), [400, 3600]))
+        self.shigh = np.concatenate((80 * np.ones(self.n_servers), self.server_max_load * np.ones(self.n_servers), [self.job_load, self.job_time]))
 
     def reset(self):
         self.rng = np.random.default_rng(self.seed)
@@ -66,10 +68,10 @@ class DCEnv(gym.Env):
         os.chdir(cwd)
 
         self.server_load = self.server_idle_load * np.ones(self.n_servers)
-        self.server_flow = np.array([self.server_idle_flow for _ in range(self.n_servers)])
+        self.server_flow = self.server_idle_flow * np.ones(self.n_servers)
 
-        self.crah_flow = self.crah_min_flow * np.ones(len(self.crah))
-        self.crah_temp_out = self.crah_min_flow * np.ones(self.n_crah)
+        self.crah_flow = self.crah_min_flow * np.ones(self.n_crah)
+        self.crah_temp_out = self.crah_min_temp * np.ones(self.n_crah)
 
         self.sim.set_time_averaging_period(self.dt) # we take one second steps and average sensor readings over that time also
         self.sim.set_boundary_conditions(self.servers, [0 for _ in range(self.n_servers)], self.server_flow)
@@ -80,10 +82,10 @@ class DCEnv(gym.Env):
 
         self.update_server()
 
-        self.event_queue = []
+        self.running_jobs = []
 
         self.start_time = self.sim.get_time()
-        self.target_time = 0
+        self.time = 0
 
         self.job = self.load_generator.step(self.dt)
         self.dropped_jobs = 0
@@ -98,9 +100,6 @@ class DCEnv(gym.Env):
     def action_transform(self, crah):
         return (crah * (self.ahigh - self.alow) + self.alow + self.ahigh) / 2
     
-    def queue_load(self, srv_idx, power, start, dur):
-        heapq.heappush(self.event_queue, (start, srv_idx, power, dur))
-
     def get_time(self):
         """Returns the time in second that has passed in the simulation since it started."""
         return (self.sim.get_time() - self.start_time).total_seconds()
@@ -109,8 +108,8 @@ class DCEnv(gym.Env):
         flow, temp_out = settings
 
         # Maybe allow individual control?
-        self.crah_flow = flow * np.ones(len(self.crah))
-        self.crah_temp_out = temp_out * np.ones(len(self.crah))
+        self.crah_flow = flow * np.ones(self.n_crah)
+        self.crah_temp_out = temp_out * np.ones(self.n_crah)
 
         self.sim.set_boundary_conditions(self.crah, self.crah_temp_out, self.crah_flow)
 
@@ -139,48 +138,34 @@ class DCEnv(gym.Env):
     def step(self, action):
         placement, crah_settings = action
         #print("CRAH settings: ", crah_settings)
-        print("Step 1: ", time.time())
-
-        load, duration = self.job
 
         # Increment time
-        self.target_time += self.dt
+        self.time += self.dt
+
+        # Place jobs in queue and remove finished
+        self.dropped_jobs = 0
+        load, dur = self.job # Always here, but load and dur is zero if no job
+        if self.server_load[placement] + load <= self.server_max_load:
+            self.server_load[placement] += load
+            heapq.heappush(self.running_jobs, (self.time + dur, load, placement))
+        else:
+            self.dropped_jobs += 1
+        while len(self.running_jobs) > 0 and self.running_jobs[0][0] <= self.time:
+            _, load, placement = heapq.heappop(self.running_jobs)
+            self.server_load[placement] -= load
 
         # Read new data from sim
         self.read_data()
-        print("Step 2: ", time.time())
         
         # Update CPU fans
         self.update_server()
 
         # Update CRAH fans
         self.update_crah(self.action_transform(crah_settings))
-        print("Step 3: ", time.time())
 
-        # Place jobs in queue
-        self.queue_load(placement, load, self.get_time(), duration)
-        print("Step 4: ", time.time())
-
-        self.dropped_jobs = 0
-        
-        # Run jobs if space and remove if done
-        while len(self.event_queue) > 0 and self.event_queue[0][0] <= self.target_time:
-            t, srv_idx, power, dur = heapq.heappop(self.event_queue)
-            if t > self.get_time(): # Step forwards until next event will happen
-                self.sim.run(t - self.get_time())
-            if dur < 0: # This is a finished job
-                self.server_load[srv_idx] -= power
-            elif self.server_load[srv_idx] < self.server_max_load: # This is a job that is placed on a server
-                self.server_load[srv_idx] += power
-                heapq.heappush(self.event_queue, (self.get_time() + dur, srv_idx, power, -1))
-            else: # Server is full, job is queued or thrown away
-                # heapq.heappush(self.event_queue, (self.get_time() + 1, srv_idx, power, dur))
-                # Penalize dropping jobs
-                self.dropped_jobs += 1
-        if self.target_time > self.get_time():
-            self.sim.run(self.target_time - self.get_time())
-        print("Step 5: ", time.time())
-
+        # Run simulation based on current boundary condition
+        self.sim.run(self.time - self.get_time())
+            
         # Get new job, tuple of expected (load, duration)
         self.job = self.load_generator.step(self.dt)
         
@@ -188,7 +173,9 @@ class DCEnv(gym.Env):
         return self.state_transform(state), self.reward(), False, {}
 
     def read_data(self):
+        print("Step 1.1: ", time.time())
         df = self.sim.get_averages("temperature")
+        print("Step 1.2: ", time.time())
         self.server_temp_in = df[[*map(lambda x: x + "_inlet", self.servers)]].iloc[[-1]].to_numpy()[0]
         self.server_temp_out = df[[*map(lambda x: x + "_outlet", self.servers)]].iloc[[-1]].to_numpy()[0]
         self.crah_temp_in = df[[*map(lambda x: x + "_in", self.crah)]].iloc[[-1]].to_numpy()[0]
@@ -220,13 +207,13 @@ class DCEnv(gym.Env):
         self.server_max_temp_cpu = 85  # C
         self.server_idle_temp_cpu = 35
         # RPMs for fans
-        server_fan_idle_rpm = 2000
-        server_fan_max_rpm = 11000.0
+        # server_fan_idle_rpm = 2000
+        # server_fan_max_rpm = 11000.0
         # Max air flow in CFM, 2 fans, converted to m3/s
         # self.server_max_flow = 109.7 * 0.000471947443
         # self.server_idle_flow = self.server_max_flow * server_fan_idle_rpm / server_fan_max_rpm
         self.server_idle_flow = 0.01
-        self.server_max_flow = 0.03 # If using 5 we get NaN from rafsine
+        self.server_max_flow = 0.04 # If using 5 we get NaN from rafsine
         # Max input power in W, 2 fans
         self.server_max_fan_power = 25.2 * 2 
 
@@ -238,7 +225,7 @@ class DCEnv(gym.Env):
         # print(self.crah_min_flow) # 0.8
         # print(self.crah_max_flow) # 6.4
         self.crah_min_flow = 0.4
-        self.crah_max_flow = 2.2
+        self.crah_max_flow = 2.5
         self.crah_max_fan_power = self.n_servers * self.server_max_fan_power / self.n_crah # CRAH is twice as efficient (max is same energy as servers but double flow)
 
         # Env constants
