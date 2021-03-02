@@ -44,11 +44,11 @@ class DCEnv(gym.Env):
         # Gym environment stuff
         self.load_balanced = config.get("load_balanced", True)
         if self.load_balanced:
+            self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,))
+        else:
             self.action_space = gym.spaces.Tuple(
                 (gym.spaces.Discrete(self.n_servers), 
                 gym.spaces.Box(-1.0, 1.0, shape=(2,))))
-        else:
-            self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,))
         self.observation_space = gym.spaces.Box(-100.0, 100.0, shape=(2 * self.n_servers + 2,))
         
         # Conversion variables for state/action mapping normalization
@@ -80,10 +80,10 @@ class DCEnv(gym.Env):
 
     def step(self, action):
         if self.load_balanced:
-            placement, crah_settings = action
-        else:
             crah_settings = action
             placement = np.argmin(self.servers.load)
+        else:
+            placement, crah_settings = action
 
         self.time += self.dt
 

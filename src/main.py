@@ -29,7 +29,7 @@ config = {
     "env": "DCEnv",
     "env_config": {
         "dt": 1,
-        "load_balanced": not args.load_balanced,
+        "load_balanced": args.load_balanced,
         "rafsine_flow": args.rafsine,
     },
 
