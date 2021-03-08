@@ -32,7 +32,7 @@ class LoggingCallbacks(DefaultCallbacks):
     def on_episode_step(self, *, worker: RolloutWorker, base_env: BaseEnv,
                         episode: MultiAgentEpisode, env_index: int, **kwargs):
         env = base_env.get_unwrapped()[0]
-        # print("Logging at env time {}".format(env.time))
+        #print("Logging at env time {}".format(env.time))
 
         # Log server
         for i in range(env.n_servers):

@@ -4,8 +4,12 @@ class ConstantArrival:
     def __init__(self, load, duration):
         self.load = load
         self.duration = duration
-    def step(self, dt):
+    def __call__(self, t, dt):
         return (self.load * dt, self.duration)
+    def min_values(self):
+        return (0, 0)
+    def max_values(self):
+        return (self.load, self.duration)
 
 class SinusArrival:
     def __init__(self, offset, amplitude, period, phase_offset=0, duration=200):

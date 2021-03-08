@@ -9,24 +9,22 @@ import numpy as np
 import gym
 import time
 
-from job import ConstantArrival
-from simpleflow import SimpleFlow
-from rafsineflow import RafsineFlow
-from servers import Servers
-from crah import CRAH
+from .simpleflow import SimpleFlow
+from .rafsineflow import RafsineFlow
+from .servers import Servers
+from .crah import CRAH
 
 class DCEnv(gym.Env):
     def __init__(self, config={}):
-        # Parameters with default values
         self.dt = config.get("dt", 1)
         self.seed = config.get("seed", 37)
         self.energy_cost = config.get("energy_cost", 0.00001)
-        self.job_drop_cost = config.get("job_drop_cost", 1.0)
+        self.job_drop_cost = config.get("job_drop_cost", 10.0)
 
         if config.get("rafsine_flow", True):
             self.flowsim = RafsineFlow(self.dt)
         else:
-            self.flowsim = SimpleFlow(self.dt)
+            self.flowsim = SimpleFlow(self.dt, config.get("n_servers", 360), config.get("n_crah", 4))
 
         self.n_servers = self.flowsim.n_servers
         self.n_crah = self.flowsim.n_crah
@@ -35,11 +33,10 @@ class DCEnv(gym.Env):
         self.crah = CRAH(self.n_crah)
 
         # Jobs
-        # 360 servers with 200 idle load 
-        # load * time * prob / 360 = avg added load to each server
-        self.job_load = 20
-        self.job_time = 3600
-        self.load_generator = ConstantArrival(load=self.job_load, duration=self.job_time)
+        self.load_generator = config["load_generator"]
+
+        self.actions = config.get("actions", ["placement", "crah_out", "crah_flow"])
+        self.observations = config.get("observations", ["load", "temp_out"])
 
         # Gym environment stuff
         self.load_balanced = config.get("load_balanced", True)
@@ -54,13 +51,13 @@ class DCEnv(gym.Env):
         # Conversion variables for state/action mapping normalization
         self.alow = np.array((self.crah.min_temp, self.crah.min_flow))
         self.ahigh = np.array((self.crah.max_temp, self.crah.max_flow))
-        self.slow = np.concatenate((20 * np.ones(self.n_servers), self.servers.idle_load * np.ones(self.n_servers), [0, 0]))
-        self.shigh = np.concatenate((80 * np.ones(self.n_servers), self.servers.max_load * np.ones(self.n_servers), [self.job_load, self.job_time]))
+        self.slow = np.concatenate((20 * np.ones(self.n_servers), self.servers.idle_load * np.ones(self.n_servers), self.load_generator.min_values()))
+        self.shigh = np.concatenate((80 * np.ones(self.n_servers), self.servers.max_load * np.ones(self.n_servers), self.load_generator.max_values()))
 
     def reset(self):
         self.rng = np.random.default_rng(self.seed)
 
-        self.ambient_temp = 17
+        self.ambient_temp = 20
 
         self.servers.reset(self.ambient_temp)
         self.crah.reset(self.ambient_temp)
@@ -73,7 +70,7 @@ class DCEnv(gym.Env):
 
         self.time = 0
 
-        self.job = self.load_generator.step(self.dt)
+        self.job = self.load_generator(self.time, self.dt)
 
         state = np.concatenate((self.flowsim.server_temp_out, self.servers.load, self.job))
         return self.state_transform(state)
@@ -97,7 +94,7 @@ class DCEnv(gym.Env):
         self.flowsim.step(self.servers, self.crah)
 
         # Get new job, tuple of expected (load, duration)
-        self.job = self.load_generator.step(self.dt)
+        self.job = self.load_generator(self.time, self.dt)
 
         state = np.concatenate((self.flowsim.server_temp_out, self.servers.load, self.job))
         
