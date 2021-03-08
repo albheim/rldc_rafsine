@@ -48,9 +48,8 @@ load = args.avg_load * args.n_servers / duration
 load_generator = job.ConstantArrival(load=load, duration=duration)
 
 # Init ray with all resources
+# needs $ ray start --head --port 6379
 ray.init(address="auto")
-#ray start --head --port 6379
-#ray.init()
 
 # Set which env to use
 ray.tune.register_env("DCEnv", DCEnv)
