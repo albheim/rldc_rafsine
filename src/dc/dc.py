@@ -20,6 +20,13 @@ class DCEnv(gym.Env):
         self.seed = config.get("seed", 37)
         self.energy_cost = config.get("energy_cost", 0.00001)
         self.job_drop_cost = config.get("job_drop_cost", 10.0)
+        self.overheat_cost = config.get("overheat_cost", 1.0)
+
+        nu = 1.568e-5 # Kinematic viscosity of air (m^2/s)
+        k = 2.624e-2 # Thermal conductivity (W/m K)
+        Pr = 0.707 # Prandtl number of air
+        air_vol_heatcap = Pr * k / nu 
+        R = config.get("kR", 3) / air_vol_heatcap
 
         if config.get("rafsine_flow", True):
             self.flowsim = RafsineFlow(self.dt)
@@ -29,8 +36,8 @@ class DCEnv(gym.Env):
         self.n_servers = self.flowsim.n_servers
         self.n_crah = self.flowsim.n_crah
 
-        self.servers = Servers(self.n_servers)
-        self.crah = CRAH(self.n_crah)
+        self.servers = Servers(self.n_servers, air_vol_heatcap, R)
+        self.crah = CRAH(self.n_crah, air_vol_heatcap)
 
         # Jobs
         self.load_generator = config["load_generator"]
@@ -67,6 +74,7 @@ class DCEnv(gym.Env):
         total_energy = (self.servers.fan_power + self.crah.fan_power + self.crah.compressor_power) * self.dt
         self.total_energy_cost = self.energy_cost * total_energy 
         self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
+        self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
 
         self.time = 0
 
@@ -84,7 +92,7 @@ class DCEnv(gym.Env):
 
         self.time += self.dt
 
-        self.servers.update(self.time, placement, self.job[0], self.job[1], self.flowsim.server_temp_in)
+        self.servers.update(self.time, self.dt, placement, self.job[0], self.job[1], self.flowsim.server_temp_in)
 
         # Update CRAH fans
         temp_out, flow = self.action_transform(crah_settings)
@@ -101,7 +109,8 @@ class DCEnv(gym.Env):
         total_energy = (self.servers.fan_power + self.crah.fan_power + self.crah.compressor_power) * self.dt
         self.total_energy_cost = self.energy_cost * total_energy 
         self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
-        total_cost = self.total_energy_cost + self.total_job_drop_cost
+        self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
+        total_cost = self.total_energy_cost + self.total_job_drop_cost + self.total_overheat_cost
         reward = -total_cost
 
         return self.state_transform(state), reward, False, {}

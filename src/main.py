@@ -1,5 +1,6 @@
 import argparse
 
+import numpy as np
 import ray
 import ray.tune as tune
 
@@ -102,6 +103,7 @@ results = tune.run(
     callbacks=callbacks, 
     stop=stop, 
     trial_name_creator=trial_name_string,
-    verbose=1)
+    verbose=1,
+    )
 
 ray.shutdown()

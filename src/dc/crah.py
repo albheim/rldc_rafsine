@@ -1,22 +1,17 @@
 import numpy as np
 
 class CRAH:
-    def __init__(self, n_crah):
+    def __init__(self, n_crah, air_vol_heatcap):
         self.n_crah = n_crah
+        self.air_vol_heatcap = air_vol_heatcap
 
         self.min_temp = 18
         self.max_temp = 27
         self.min_flow = 0.4
         self.max_flow = 2.5
-        self.max_fan_power = 10000
-
-        # Kinematic viscosity of air (m^2/s)
-        nu = 1.568e-5
-        # Thermal conductivity (W/m K)
-        k = 2.624e-2
-        # Prandtl number of air
-        Pr = 0.707
-        self.air_vol_heatcap = Pr * k / nu 
+        # servers are 50.4 / 0.04 watt/flow
+        # crah should probably be similar (maybe cheaper) so starting we set it to 2.5 * 50.4 / 0.04 = 3150
+        self.max_fan_power = 3150 / 2
 
     def reset(self, ambient_temp):
         self.flow = self.min_flow * np.ones(self.n_crah)

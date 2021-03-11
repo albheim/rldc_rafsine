@@ -42,10 +42,15 @@ class LoggingCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
             episode.custom_metrics[f"srv{i}/temp_out"] = env.flowsim.server_temp_out[i]
 
+        episode.custom_metrics["srv/server_total_flow"] = np.sum(env.servers.flow)
+        episode.custom_metrics["srv/overheated_inlets"] = env.servers.overheated_inlets
+
         for i in range(env.n_crah):
             episode.custom_metrics[f"crah{i}/temp_in"] = env.flowsim.crah_temp_in[i]
             episode.custom_metrics[f"crah{i}/temp_out"] = env.crah.temp_out[i]
             episode.custom_metrics[f"crah{i}/flow"] = env.crah.flow[i]
+
+        episode.custom_metrics["crah/crah_total_flow"] = np.sum(env.crah.flow)
 
         episode.custom_metrics["job/load"] = env.job[0]
         episode.custom_metrics["job/duration"] = env.job[1]
@@ -54,14 +59,12 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["job/running"] = len(env.servers.running_jobs)
         episode.custom_metrics["job/dropped"] = env.servers.dropped_jobs
 
-        episode.custom_metrics["other/ambient_temp"] = env.ambient_temp
-        episode.custom_metrics["other/server_total_flow"] = np.sum(env.servers.flow)
-        episode.custom_metrics["other/crah_total_flow"] = np.sum(env.crah.flow)
-
         episode.custom_metrics["power/server_fan"] = env.servers.fan_power
         episode.custom_metrics["power/crah_fan"] = env.crah.fan_power
         episode.custom_metrics["power/compressor"] = env.crah.compressor_power
 
         episode.custom_metrics["cost/energy"] = env.total_energy_cost
         episode.custom_metrics["cost/dropped"] = env.total_job_drop_cost
+        episode.custom_metrics["cost/temp_cold_isle"] = env.total_overheat_cost
         
+        episode.custom_metrics["other/ambient_temp"] = env.ambient_temp
