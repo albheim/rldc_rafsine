@@ -1,6 +1,5 @@
 import argparse
 
-import numpy as np
 import ray
 import ray.tune as tune
 
@@ -14,11 +13,12 @@ parser.add_argument("--as_test", action="store_true")
 parser.add_argument("--stop_reward", type=float, default=0.0)
 parser.add_argument("--stop_iters", type=int, default=100)
 parser.add_argument("--stop_timesteps", type=int, default=500000)
-parser.add_argument("--load_balanced", action="store_true")
 parser.add_argument("--rafsine", action="store_true")
 parser.add_argument("--n_servers", type=int, default=360)
 parser.add_argument("--avg_load", type=int, default=200)
 parser.add_argument("--n_crah", type=int, default=4)
+parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah_flow"])
+parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
 parser.add_argument("--tag", type=str, default="")
 
 args = parser.parse_args()
@@ -34,13 +34,13 @@ def trial_name_string(trial):
     """
     name = str(trial)
     if args.rafsine:
-        name += "_rafsine" 
+        name += "_RAFSINE" 
     else: 
-        name += "_simple"
-    if args.load_balanced:
-        name += "_balanced"
+        name += "_SIMPLE"
+    name += "_ACT_" + "_".join(args.actions)
+    name += "_OBS_" + "_".join(args.observations)
     if args.tag != "":
-        name += "_" + args.tag
+        name += "_TAG_" + args.tag
     return name
 
 # avg_load = load * duration / servers => load = avg_load * servers / duration
@@ -60,11 +60,12 @@ config = {
     "env": "DCEnv",
     "env_config": {
         "dt": 1,
-        "load_balanced": args.load_balanced,
         "rafsine_flow": args.rafsine,
         "n_servers": args.n_servers,
         "n_crah": args.n_crah,
         "load_generator": load_generator,
+        "actions": args.actions,
+        "observations": args.observations,
     },
 
     # Worker setup

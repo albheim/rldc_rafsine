@@ -1,8 +1,11 @@
 import numpy as np
 
 class SimpleFlow:
-    def __init__(self, dt, n_servers=360, n_crah=4):
+    def __init__(self, dt, n_servers=360, n_racks=12, n_crah=4):
         self.n_servers = n_servers
+        self.n_racks = n_racks
+        assert self.n_servers % self.n_racks == 0, "Servers not divisible into racks"
+        self.servers_per_rack = self.n_servers // self.n_racks
         self.n_crah = n_crah
         self.dt = dt
 

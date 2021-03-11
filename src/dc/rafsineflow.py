@@ -9,11 +9,13 @@ from python.simulation import Simulation
 class RafsineFlow:
     def __init__(self, dt):
         # Server layout
-        self.racks = 12
+        self.n_racks = 12
         self.chassis_per_rack = 10
         self.servers_per_chassi = 3
+        
+        self.servers_per_rack = self.chassis_per_rack * self.servers_per_chassi
 
-        self.server_names = ["P02R{:02}C{:02}SRV{:02}".format(rack, chassi, srv) for rack in range(1, self.racks+1) for chassi in range(1, self.chassis_per_rack+1) for srv in range(1, self.servers_per_chassi+1)]
+        self.server_names = ["P02R{:02}C{:02}SRV{:02}".format(rack, chassi, srv) for rack in range(1, self.n_racks+1) for chassi in range(1, self.chassis_per_rack+1) for srv in range(1, self.servers_per_chassi+1)]
         self.crah_names = ["P02HDZ{:02}".format(i+1) for i in range(4)]
 
         self.n_servers = len(self.server_names)
