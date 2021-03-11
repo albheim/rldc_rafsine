@@ -7,7 +7,7 @@ class ConstantArrival:
     def step(self, dt):
         return (self.load * dt, self.duration)
 
-class SinusLoad:
+class SinusArrival:
     def __init__(self, offset, amplitude, period, phase_offset=0, duration=200):
         self.offset = offset
         self.amplitude = amplitude

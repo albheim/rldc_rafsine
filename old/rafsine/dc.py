@@ -8,21 +8,21 @@ import heapq
 import numpy as np
 import gym
 import time
+import sys
 
 RAFSINE_BASE = "/home/ubuntu/rafsine"
-import sys
 sys.path.insert(0, RAFSINE_BASE)
 
 from python.simulation import Simulation
 from job import ConstantArrival
 
-class DCEnv(gym.Env):
+class RafsineDCEnv(gym.Env):
     def __init__(self, config={}):
         # Parameters with default values
         self.dt = config.get("dt", 1)
         self.seed = config.get("seed", 37)
         self.energy_cost = config.get("energy_cost", 0.00001)
-        self.job_drop_cost = config.get("job_drop_cost", 10.0)
+        self.job_drop_cost = config.get("job_drop_cost", 1.0)
 
         # Server layout
         self.racks = 12
@@ -30,27 +30,34 @@ class DCEnv(gym.Env):
         self.servers_per_chassi = 3
 
         self.servers = ["P02R{:02}C{:02}SRV{:02}".format(rack, chassi, srv) for rack in range(1, self.racks+1) for chassi in range(1, self.chassis_per_rack+1) for srv in range(1, self.servers_per_chassi+1)]
-        self.sensors = ["sensors_racks_{:02}_to_{:02}_{}_{}".format(rack, rack + 2, direction, loc) for direction in ["in", "out"] for rack in [1, 4, 7, 10] for loc in ['b', 'm', 't']]
         self.crah = ["P02HDZ{:02}".format(i+1) for i in range(4)]
 
         self.n_servers = len(self.servers)
-        self.n_sensors = len(self.sensors) 
         self.n_crah = len(self.crah) 
 
         # Setup simulation constants
         self.setup_physical_constants()
 
         # Jobs
-        # 360 servers with 200 idle load makes this on average put 450 load on each server out of 500 max
-        #self.load_generator = ConstantArrival(load=25, duration=3600)
-        self.job_load = 15
+        # 360 servers with 200 idle load 
+        # load * time * prob / 360 = avg added load to each server
+        self.job_load = 20
         self.job_time = 3600
-        self.load_generator = ConstantArrival(load=15, duration=3600)
+        self.load_generator = ConstantArrival(load=self.job_load, duration=self.job_time)
+        #self.job_time = 3600
+        #self.job_rate = 0.75 # Just tested to be around a nice number
+        #self.job_load = 20
+        #self.load_generator = RandomArrival(self.job_load, self.job_time, self.job_rate)
+
 
         # Gym environment stuff
-        self.action_space = gym.spaces.Tuple(
-            (gym.spaces.Discrete(self.n_servers),
-            gym.spaces.Box(-1, 1, shape=(2,))))
+        self.load_balanced = config.get("load_balanced", True)
+        if self.load_balanced:
+            self.action_space = gym.spaces.Tuple(
+                (gym.spaces.Discrete(self.n_servers), 
+                gym.spaces.Box(-1.0, 1.0, shape=(2,))))
+        else:
+            self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,))
         self.observation_space = gym.spaces.Box(-100.0, 100.0, shape=(2 * self.n_servers + 2,))
         
         # Conversion variables for state/action mapping normalization
@@ -136,7 +143,11 @@ class DCEnv(gym.Env):
         return -total_cost
 
     def step(self, action):
-        placement, crah_settings = action
+        if self.load_balanced:
+            placement, crah_settings = action
+        else:
+            crah_settings = action
+            placement = np.argmin(self.server_load)
         #print("CRAH settings: ", crah_settings)
 
         # Increment time
@@ -149,7 +160,7 @@ class DCEnv(gym.Env):
             self.server_load[placement] += load
             heapq.heappush(self.running_jobs, (self.time + dur, load, placement))
         else:
-            self.dropped_jobs += 1
+            self.dropped_jobs = 1
         while len(self.running_jobs) > 0 and self.running_jobs[0][0] <= self.time:
             _, load, placement = heapq.heappop(self.running_jobs)
             self.server_load[placement] -= load
@@ -179,7 +190,6 @@ class DCEnv(gym.Env):
         self.server_temp_in = df[[*map(lambda x: x + "_inlet", self.servers)]].iloc[[-1]].to_numpy()[0]
         self.server_temp_out = df[[*map(lambda x: x + "_outlet", self.servers)]].iloc[[-1]].to_numpy()[0]
         self.crah_temp_in = df[[*map(lambda x: x + "_in", self.crah)]].iloc[[-1]].to_numpy()[0]
-        #self.sensors = df[[*self.sensors]].iloc[[-1]].to_numpy()[0]
         #print("Server load: ", np.max(self.server_load), "/", np.sum(self.server_load) / len(self.server_load))
         #print("Server out: ", np.max(self.server_temp_out))
         #print("Server in: ", np.max(self.server_temp_in))

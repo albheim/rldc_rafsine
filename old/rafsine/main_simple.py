@@ -4,16 +4,18 @@ import ray
 import ray.tune as tune
 
 from dc_simple import SimpleDCEnv
+from balancedwrapper import DCLoadBalancedWrapper
 #from tblogger import TBStateLoggerCallback
 from basiclogger import LoggingCallbacks
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", type=str, default="PPO")
-parser.add_argument("--as-test", action="store_true")
-parser.add_argument("--stop-reward", type=float, default=0.0)
-parser.add_argument("--stop-iters", type=int, default=100)
-parser.add_argument("--stop-timesteps", type=int, default=500000)
-parser.add_argument("--num-cpus", type=int, default=0)
+parser.add_argument("--as_test", action="store_true")
+parser.add_argument("--stop_reward", type=float, default=0.0)
+parser.add_argument("--stop_iters", type=int, default=100)
+parser.add_argument("--stop_timesteps", type=int, default=500000)
+parser.add_argument("--num_cpus", type=int, default=0)
+parser.add_argument("--load_balanced", action="store_true")
 
 args = parser.parse_args()
 
@@ -28,8 +30,12 @@ config = {
     "horizon": 1000,
     "vf_clip_param": 1000.0,
     "soft_horizon": True,
+    #"normalize_actions": True,
+    #"observation_filter": "MeanStdFilter", 
     "env_config": {
-        "n_servers": 20,
+        "dt": 1.0,
+        "n_servers": 360,
+        "load_balanced": not args.load_balanced,
     },
 }
 

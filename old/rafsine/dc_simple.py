@@ -2,28 +2,35 @@ import numpy as np
 import gym
 import heapq
 
-from job import RandomArrival
+from job import RandomArrival, ConstantArrival
 class SimpleDCEnv(gym.Env):
     def __init__(self, config):
         self.dt = config.get("dt", 1)
         self.seed = config.get("seed", 37)
-        self.energy_cost = config.get("energy_cost", 0.00001)
+        self.energy_cost = config.get("energy_cost", 0.0001)
         self.job_drop_cost = config.get("job_drop_cost", 10.0)
-        self.n_servers = config["n_servers"]
-        self.n_crah = 1
+        self.n_servers = config.get("n_servers", 360)
+        self.n_crah = 1 # Simple sim can only have 1 CRAH
 
         self.setup_physical_constants()
 
         # Job constants
-        self.job_time = 200
-        self.job_rate = self.n_servers / 30 # Just tested to be around a nice number
         self.job_load = 20
-        self.load_generator = RandomArrival(self.job_load, self.job_time, self.job_rate)
+        self.job_time = 3600
+        self.load_generator = ConstantArrival(load=self.job_load, duration=self.job_time)
+        # self.job_time = 200
+        # self.job_rate = self.n_servers / 30 # Just tested to be around a nice number
+        # self.job_load = 20
+        # self.load_generator = RandomArrival(self.job_load, self.job_time, self.job_rate)
 
         # Gym spaces
-        self.action_space = gym.spaces.Tuple(
-            (gym.spaces.Discrete(self.n_servers), 
-            gym.spaces.Box(-1.0, 1.0, shape=(2,))))
+        self.load_balanced = config.get("load_balanced", True)
+        if self.load_balanced:
+            self.action_space = gym.spaces.Tuple(
+                (gym.spaces.Discrete(self.n_servers), 
+                gym.spaces.Box(-1.0, 1.0, shape=(2,))))
+        else:
+            self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,))
         self.observation_space = gym.spaces.Box(-100.0, 100.0, shape=(2 + 2 * self.n_servers,))
 
         # Used for rescaling
@@ -39,7 +46,7 @@ class SimpleDCEnv(gym.Env):
             (self.job_load, self.job_time)))
 
     def action_transform(self, crah_settings):
-        crah_settings = (crah_settings * (self.ahigh - self.alow) + self.ahigh + self.alow) / 2
+        crah_settings = (np.clip(crah_settings, -1.0, 1.0) * (self.ahigh - self.alow) + self.ahigh + self.alow) / 2
         return crah_settings
     
     def state_transform(self, state):
@@ -99,7 +106,11 @@ class SimpleDCEnv(gym.Env):
         return -total_cost
 
     def step(self, action):
-        placement, crah_settings = action
+        if self.load_balanced:
+            placement, crah_settings = action
+        else:
+            crah_settings = action
+            placement = np.argmin(self.server_load)
 
         # Increment time
         self.time += self.dt
@@ -107,11 +118,13 @@ class SimpleDCEnv(gym.Env):
         # Place jobs and remove finished jobs
         self.dropped_jobs = 0
         load, dur = self.job # Always here, but load and dur is zero if no job
-        if self.server_load[placement] + load <= self.server_max_load:
+        if load == 0:
+            pass # No job
+        elif self.server_load[placement] + load <= self.server_max_load:
             self.server_load[placement] += load
             heapq.heappush(self.running_jobs, (self.time + dur, load, placement))
         else:
-            self.dropped_jobs += 1
+            self.dropped_jobs = 1
         while len(self.running_jobs) > 0 and self.running_jobs[0][0] <= self.time:
             _, load, placement = heapq.heappop(self.running_jobs)
             self.server_load[placement] -= load
@@ -142,8 +155,8 @@ class SimpleDCEnv(gym.Env):
         # Find new input temperatures
         bypass = min(1, crah_flow_total / server_flow_total)
         recirc = min(1, server_flow_total / crah_flow_total)
-        self.server_temp_in = (bypass * self.crah_temp_out + (1 - bypass) * server_temp_out_total) * np.ones(self.n_servers)
-        self.crah_temp_in = (recirc * server_temp_out_total + (1 - recirc) * self.crah_temp_out) * np.ones(self.n_crah)
+        self.server_temp_in = (bypass * self.crah_temp_out[0] + (1 - bypass) * server_temp_out_total) * np.ones(self.n_servers)
+        self.crah_temp_in = (recirc * server_temp_out_total + (1 - recirc) * self.crah_temp_out[0]) * np.ones(self.n_crah)
 
     def get_time(self):
         return self.time

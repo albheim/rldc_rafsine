@@ -10,10 +10,6 @@ from ray.rllib.policy import Policy
 from ray.rllib.policy.sample_batch import SampleBatch
 
 class LoggingCallbacks(DefaultCallbacks):
-    def on_episode_start(self, *, worker: RolloutWorker, base_env: BaseEnv,
-                         policies: Dict[str, Policy],
-                         episode: MultiAgentEpisode, env_index: int, **kwargs):
-        pass
     def on_sample_end(self, *, worker: RolloutWorker, samples: SampleBatch,
                       **kwargs):
         pass
@@ -25,7 +21,10 @@ class LoggingCallbacks(DefaultCallbacks):
             postprocessed_batch: SampleBatch,
             original_batches: Dict[str, SampleBatch], **kwargs):
         pass
-
+    def on_episode_start(self, *, worker: RolloutWorker, base_env: BaseEnv,
+                         policies: Dict[str, Policy],
+                         episode: MultiAgentEpisode, env_index: int, **kwargs):
+        pass
     def on_episode_end(self, *, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        env_index: int, **kwargs):
@@ -38,7 +37,7 @@ class LoggingCallbacks(DefaultCallbacks):
         if env.get_time() == 0:
             return
 
-        print("Logging at env time {}".format(env.get_time()))
+        # print("Logging at env time {}".format(env.get_time()))
 
         # Log server
         for i in range(env.n_servers):
@@ -53,7 +52,7 @@ class LoggingCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"crah{i}/temp_out"] = env.crah_temp_out[i]
             episode.custom_metrics[f"crah{i}/flow"] = env.crah_flow[i]
 
-        episode.custom_metrics[f"job/dur"] = env.job[0]
+        episode.custom_metrics[f"job/duration"] = env.job[0]
         episode.custom_metrics[f"job/load"] = env.job[1]
 
         # Should be 0 with the drop instead of delay?

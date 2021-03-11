@@ -3,28 +3,36 @@ import argparse
 import ray
 import ray.tune as tune
 
-from dc import DCEnv
+from dc import RafsineDCEnv
+from dc_simple import SimpleDCEnv
+from balancedwrapper import DCLoadBalancedWrapper
 from basiclogger import LoggingCallbacks
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", type=str, default="PPO")
-parser.add_argument("--as-test", action="store_true")
-parser.add_argument("--stop-reward", type=float, default=0.0)
-parser.add_argument("--stop-iters", type=int, default=100)
-parser.add_argument("--stop-timesteps", type=int, default=100000)
-parser.add_argument("--num-cpus", type=int, default=0)
+parser.add_argument("--as_test", action="store_true")
+parser.add_argument("--stop_reward", type=float, default=0.0)
+parser.add_argument("--stop_iters", type=int, default=100)
+parser.add_argument("--stop_timesteps", type=int, default=500000)
+parser.add_argument("--num_cpus", type=int, default=0)
+parser.add_argument("--load_balanced", action="store_true")
+parser.add_argument("--simple", action="store_true")
 
 args = parser.parse_args()
 
+# Init ray with all resources
 ray.init()
 
-ray.tune.register_env("DCEnv", DCEnv)
+# Set which env to use
+DCEnv = SimpleDCEnv if args.simple else RafsineDCEnv
+ray.tune.register_env("DCEnv", lambda x: DCEnv(x))
 
 config = {
     # Environment
     "env": "DCEnv",
     "env_config": {
-        "dt": 1
+        "dt": 1,
+        "load_balanced": not args.load_balanced,
     },
 
     # Worker setup
