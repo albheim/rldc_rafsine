@@ -21,6 +21,7 @@ class DCEnv(gym.Env):
         self.energy_cost = config.get("energy_cost", 0.00001)
         self.job_drop_cost = config.get("job_drop_cost", 10.0)
         self.overheat_cost = config.get("overheat_cost", 0.1)
+        self.load_variance_cost = config.get("load_variance_cost", 0.1)
 
         if config.get("rafsine_flow", True):
             self.flowsim = RafsineFlow(self.dt)
@@ -102,6 +103,7 @@ class DCEnv(gym.Env):
         self.total_energy_cost = self.energy_cost * total_energy 
         self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
         self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
+        self.total_load_variance_cost = self.load_variance_cost * self.servers.load_variance
 
         self.time = 0
 
@@ -117,7 +119,7 @@ class DCEnv(gym.Env):
         if "rack" in action:
             rack_placement = action.get("rack")
             start = rack_placement * self.flowsim.servers_per_rack
-            end = (rack_placement + 1) * self.flowsim.servers_per_rack - 1
+            end = (rack_placement + 1) * self.flowsim.servers_per_rack
             placement = start + np.argmin(self.servers.load[start:end])
         elif "server" in action:
             placement = action.get("server")
@@ -143,7 +145,8 @@ class DCEnv(gym.Env):
         self.total_energy_cost = self.energy_cost * total_energy 
         self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
         self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
-        total_cost = self.total_energy_cost + self.total_job_drop_cost + self.total_overheat_cost
+        self.total_load_variance_cost = self.load_variance_cost * self.servers.load_variance
+        total_cost = self.total_energy_cost + self.total_job_drop_cost + self.total_overheat_cost + self.total_load_variance_cost
         reward = -total_cost
 
         state = self.get_state()

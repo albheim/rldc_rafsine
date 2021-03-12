@@ -44,6 +44,7 @@ class LoggingCallbacks(DefaultCallbacks):
 
         episode.custom_metrics["srv/server_total_flow"] = np.sum(env.servers.flow)
         episode.custom_metrics["srv/overheated_inlets"] = env.servers.overheated_inlets
+        episode.custom_metrics["srv/load_variance"] = env.servers.load_variance
 
         for i in range(env.n_crah):
             episode.custom_metrics[f"crah{i}/temp_in"] = env.flowsim.crah_temp_in[i]
@@ -66,5 +67,6 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["cost/energy"] = env.total_energy_cost
         episode.custom_metrics["cost/dropped"] = env.total_job_drop_cost
         episode.custom_metrics["cost/temp_cold_isle"] = env.total_overheat_cost
+        episode.custom_metrics["cost/load_variance"] = env.total_load_variance_cost
         
         episode.custom_metrics["other/ambient_temp"] = env.ambient_temp
