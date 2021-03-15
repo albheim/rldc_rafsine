@@ -66,11 +66,11 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["power/compressor"] = env.crah.compressor_power
         it_power = np.sum(env.servers.load)
         cooling_power = env.servers.fan_power + env.crah.fan_power + env.crah.compressor_power
+        episode.custom_metrics["power/total_server_load"] = it_power
         episode.custom_metrics["power/PUE"] = (cooling_power + it_power) / it_power
 
         episode.custom_metrics["cost/energy"] = env.total_energy_cost
         episode.custom_metrics["cost/dropped"] = env.total_job_drop_cost
         episode.custom_metrics["cost/temp_cold_isle"] = env.total_overheat_cost
-        episode.custom_metrics["cost/load_variance"] = env.total_load_variance_cost
         
         episode.custom_metrics["other/ambient_temp"] = env.ambient_temp
