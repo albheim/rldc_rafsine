@@ -5,7 +5,7 @@ import ray.tune as tune
 
 import job 
 from dc.dc import DCEnv
-from basiclogger import LoggingCallbacks
+from loggerutils.loggingcallbacks import LoggingCallbacks
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", type=str, default="PPO")
@@ -14,16 +14,18 @@ parser.add_argument("--stop_reward", type=float, default=0.0)
 parser.add_argument("--stop_iters", type=int, default=100)
 parser.add_argument("--stop_timesteps", type=int, default=500000)
 parser.add_argument("--rafsine", action="store_true")
-parser.add_argument("--n_servers", type=int, default=360)
 parser.add_argument("--avg_load", type=int, default=200)
+parser.add_argument("--n_servers", type=int, default=360)
 parser.add_argument("--n_crah", type=int, default=4)
+parser.add_argument("--n_place", type=int, default=360)
+parser.add_argument("--load_variance_cost", type=float, default=0.0)
 parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah_flow"])
 parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
 parser.add_argument("--tag", type=str, default="")
+parser.add_argument("--pretrain_timesteps", type=int, default=0)
 
 args = parser.parse_args()
 
-tag = "testing"
 def trial_name_string(trial):
     """
     Args:
@@ -63,9 +65,12 @@ config = {
         "rafsine_flow": args.rafsine,
         "n_servers": args.n_servers,
         "n_crah": args.n_crah,
+        "n_place": args.n_place,
         "load_generator": load_generator,
         "actions": args.actions,
         "observations": args.observations,
+        "load_variance_cost": args.load_variance_cost,
+        "pretrain_timesteps": args.pretrain_timesteps,
     },
 
     # Worker setup
@@ -81,7 +86,7 @@ config = {
     "train_batch_size": 1000, # This sets how often stuff is logged
 
     # Agent settings
-    "vf_clip_param": 10.0,
+    "vf_clip_param": 10.0, # Set this to be around the size of value function?
 
     # Data settings
     #"observation_filter": "MeanStdFilter", # Test this
@@ -106,5 +111,3 @@ results = tune.run(
     trial_name_creator=trial_name_string,
     verbose=1,
     )
-
-ray.shutdown()
