@@ -21,7 +21,8 @@ class DCEnv(gym.Env):
         self.energy_cost = config.get("energy_cost", 0.00001)
         self.job_drop_cost = config.get("job_drop_cost", 10.0)
         self.overheat_cost = config.get("overheat_cost", 0.1)
-        self.load_variance_cost = config.get("load_variance_cost", 0.1)
+        self.load_variance_cost = config.get("load_variance_cost", 0.01)
+        self.pretrain_timesteps = config.get("pretrain_timesteps", 0)
 
         if config.get("rafsine_flow", True):
             self.flowsim = RafsineFlow(self.dt)
@@ -30,6 +31,8 @@ class DCEnv(gym.Env):
 
         self.n_servers = self.flowsim.n_servers
         self.n_crah = self.flowsim.n_crah
+
+        self.n_place = config.get("n_place", self.n_servers)
 
         nu = 1.568e-5 # Kinematic viscosity of air (m^2/s)
         k = 2.624e-2 # Thermal conductivity (W/m K)
@@ -49,12 +52,14 @@ class DCEnv(gym.Env):
         # Gym environment stuff
         # Generate all individual action spaces
         action_spaces_agent = {
+            "none": gym.spaces.Discrete(2), # If running with other algorithms
             "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
             "server": gym.spaces.Discrete(self.flowsim.n_servers), 
             "crah_out": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
             "crah_flow": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
         }
         action_spaces_env = {
+            "none": gym.spaces.Discrete(2),
             "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
             "server": gym.spaces.Discrete(self.flowsim.n_servers), 
             "crah_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(1,)),
@@ -113,6 +118,10 @@ class DCEnv(gym.Env):
         return state
 
     def step(self, action):
+        # Not the nicest way, but it should work. Just empty action if pretrain and we will choose default actions
+        if self.time < self.pretrain_timesteps:
+            action = {}
+
         clipped_action = map(lambda x: self.clip_action(*x), zip(action, self.action_space))
         rescaled_action = map(lambda x: self.scale_to(*x), zip(clipped_action, self.action_space, self.action_space_env))
         action = dict(zip(self.actions, rescaled_action))
@@ -124,7 +133,7 @@ class DCEnv(gym.Env):
         elif "server" in action:
             placement = action.get("server")
         else:
-            placement = np.argmin(self.servers.load)
+            placement = np.argmin(self.servers.load[:self.n_place])
 
         self.time += self.dt
 
@@ -145,7 +154,7 @@ class DCEnv(gym.Env):
         self.total_energy_cost = self.energy_cost * total_energy 
         self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
         self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
-        self.total_load_variance_cost = self.load_variance_cost * self.servers.load_variance
+        self.total_load_variance_cost = self.load_variance_cost * np.var(self.servers.load)
         total_cost = self.total_energy_cost + self.total_job_drop_cost + self.total_overheat_cost + self.total_load_variance_cost
         reward = -total_cost
 
