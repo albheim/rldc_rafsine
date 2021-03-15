@@ -32,7 +32,6 @@ class Servers:
         self.running_jobs = []
         self.dropped_jobs = 0
         self.overheated_inlets = 0
-        self.load_variance = 0
 
     def update(self, time, dt, placement, load, duration, temp_in):
         # Update server in correct order
@@ -44,12 +43,12 @@ class Servers:
 
         self.temp_cpu = new_temp_cpu
         self.overheated_inlets = np.sum(temp_in > 27)
-        self.load_variance = np.var(self.load)
 
         self.delta_t = self.load / (self.air_vol_heatcap * self.flow)
         
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
 
+        self.dropped_jobs = 0
         if load == 0:
             pass # No job
         elif self.load[placement] + load <= self.max_load:
