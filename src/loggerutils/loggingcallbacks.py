@@ -37,7 +37,7 @@ class LoggingCallbacks(DefaultCallbacks):
         # Log server
         for i in range(env.n_servers):
             episode.custom_metrics[f"srv{i}/load"] = env.servers.load[i]
-            #episode.custom_metrics[f"srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
+            episode.custom_metrics[f"srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
             #episode.custom_metrics[f"srv{i}/flow"] = env.servers.flow[i]
             #episode.custom_metrics[f"srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
             #episode.custom_metrics[f"srv{i}/temp_out"] = env.flowsim.server_temp_out[i]
@@ -73,4 +73,4 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["cost/dropped"] = env.total_job_drop_cost
         episode.custom_metrics["cost/temp_cold_isle"] = env.total_overheat_cost
         
-        episode.custom_metrics["other/ambient_temp"] = env.ambient_temp
+        episode.custom_metrics["other/ambient_temp"] = env.ambient_temp(env.time)
