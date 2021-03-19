@@ -2,13 +2,17 @@ import argparse
 
 import ray
 import ray.tune as tune
+from ray.rllib.models import ModelCatalog
 
-import job 
+import loads 
 from dc.dc import DCEnv
 from loggerutils.loggingcallbacks import LoggingCallbacks
 
+from models.fcnet import FullyConnectedNetwork
+from models.serverconv import ServerConvNetwork
+
 parser = argparse.ArgumentParser()
-parser.add_argument("--run", type=str, default="PPO")
+parser.add_argument("--model", type=str, default="")
 parser.add_argument("--stop_timesteps", type=int, default=500000)
 parser.add_argument("--rafsine", action="store_true")
 parser.add_argument("--avg_load", type=int, default=200)
@@ -20,10 +24,13 @@ parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah
 parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
 parser.add_argument("--tag", type=str, default="")
 parser.add_argument("--pretrain_timesteps", type=int, default=0)
-parser.add_argument("--ambient_range", nargs=2, type=float, default=[0, 0])
-parser.add_argument("--job_load", nargs=2, type=float, default=[20, 100])
 
 args = parser.parse_args()
+
+if args.rafsine:
+    vars(args)["n_servers"] = 360
+    vars(args)["n_racks"] = 12
+    vars(args)["n_crah"] = 4
 
 def trial_name_string(trial):
     """
@@ -44,48 +51,67 @@ def trial_name_string(trial):
         name += "_TAG_" + args.tag
     return name
 
-# avg_load = load * duration / servers => load = avg_load * servers / duration
-duration = 100
-load = args.avg_load * args.n_servers / duration
-load_generator = job.ConstantArrival(load=load, duration=duration)
+# Job load
+# avg_load = load_per_step / step_len * duration / servers => duration = step_len * avg_load * servers / load_per_step
+dt = 1
+load_per_step = 50
+duration = dt * args.avg_load * args.n_servers / load_per_step
+load_generator = loads.ConstantArrival(load=load_per_step, duration=duration)
+
+# Ambient temp
+temp_generator = loads.ConstantTemperature(temp=20)
 
 # Init ray with all resources
 # needs $ ray start --head --port 6379
 ray.init(address="auto")
 
-# Set which env to use
+# Register env with ray
 ray.tune.register_env("DCEnv", DCEnv)
+
+# Register models with ray
+ModelCatalog.register_custom_model("fc", FullyConnectedNetwork)
+ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
 
 config = {
     # Environment
     "env": "DCEnv",
     "env_config": {
-        "dt": 1,
+        "dt": dt,
         "rafsine_flow": args.rafsine,
         "n_servers": args.n_servers,
         "n_racks": args.n_racks,
         "n_crah": args.n_crah,
         "n_place": args.n_place,
         "load_generator": load_generator,
+        "ambient_temp": temp_generator,
         "actions": args.actions,
         "observations": args.observations,
         "pretrain_timesteps": args.pretrain_timesteps,
     },
 
+    # Model
+    "model": {
+        "custom_model": args.model,
+        "custom_model_config": {
+            "n_servers": args.n_servers,
+        },
+    },
+
     # Worker setup
     "num_workers": 1,
     "num_gpus_per_worker": 1 if args.rafsine else 0, # Only give gpu to rafsine
-    "num_cpus_per_worker": 4, # Does this make any difference?
+    "num_cpus_per_worker": 2, # Does this make any difference?
 
     # For logging (does soft_horizon do more, not sure...)
     "callbacks": LoggingCallbacks,
     "soft_horizon": True,
     "no_done_at_end": True,
-    "horizon": 1000, # This sets how often stuff is sampled for the avg/min/max logging
-    "train_batch_size": 1000, # This sets how often stuff is logged
+    "horizon": 100, # This sets how often stuff is sampled for the avg/min/max logging, no...
+    "train_batch_size": 200, # This affects how often stuff is logged, maybe???
+    "rollout_fragment_length": 200,
 
     # Agent settings
-    "vf_clip_param": 10.0, # Set this to be around the size of value function?
+    "vf_clip_param": 1000000.0, # Set this to be around the size of value function? Git issue about this not being good, just set high?
 
     # Data settings
     #"observation_filter": "MeanStdFilter", # Test this
@@ -103,7 +129,7 @@ callbacks = [
 ]
 
 results = tune.run(
-    args.run, 
+    "PPO", 
     config=config, 
     callbacks=callbacks, 
     stop=stop, 

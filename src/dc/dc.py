@@ -9,10 +9,10 @@ import numpy as np
 import gym
 import time
 
-from .simpleflow import SimpleFlow
-from .rafsineflow import RafsineFlow
-from .servers import Servers
-from .crah import CRAH
+from dc.simpleflow import SimpleFlow
+from dc.rafsineflow import RafsineFlow
+from dc.servers import Servers
+from dc.crah import CRAH
 
 class DCEnv(gym.Env):
     def __init__(self, config={}):
@@ -47,6 +47,9 @@ class DCEnv(gym.Env):
 
         self.actions = config.get("actions", ["server", "crah_out", "crah_flow"])
         self.observations = config.get("observations", ["temp_out", "load", "job"])
+
+        # Ambient temp
+        self.ambient_temp = config["ambient_temp"]
 
         # Gym environment stuff
         # Generate all individual action spaces
@@ -96,10 +99,10 @@ class DCEnv(gym.Env):
     def reset(self):
         self.rng = np.random.default_rng(self.seed)
 
-        self.ambient_temp = 20
+        self.time = 0
 
-        self.servers.reset(self.ambient_temp)
-        self.crah.reset(self.ambient_temp)
+        self.servers.reset(self.ambient_temp(self.time))
+        self.crah.reset(self.ambient_temp(self.time))
 
         self.flowsim.reset(self.servers, self.crah)
 
@@ -108,9 +111,7 @@ class DCEnv(gym.Env):
         self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
         self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
 
-        self.time = 0
-
-        self.job = self.load_generator(self.time, self.dt)
+        self.job = self.load_generator(self.time)
 
         state = self.get_state()
         return state
@@ -140,13 +141,13 @@ class DCEnv(gym.Env):
         # Update CRAH fans
         crah_temp = action.get("crah_out", 22)
         crah_flow = action.get("crah_flow", 0.8 * self.crah.max_flow)
-        self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.ambient_temp)
+        self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.ambient_temp(self.time))
 
         # Run simulation based on current boundary condition
         self.flowsim.step(self.servers, self.crah)
 
         # Get new job, tuple of expected (load, duration)
-        self.job = self.load_generator(self.time, self.dt)
+        self.job = self.load_generator(self.time)
 
         total_energy = (self.servers.fan_power + self.crah.fan_power + self.crah.compressor_power) * self.dt
         self.total_energy_cost = self.energy_cost * total_energy 
