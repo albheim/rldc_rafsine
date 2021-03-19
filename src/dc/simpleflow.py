@@ -22,12 +22,12 @@ class SimpleFlow:
 
         prev_server_temp_out_avg = np.dot(servers.flow, self.server_temp_out) / server_flow_total
 
-        bypass = min(1, crah_flow_total / server_flow_total)
-        recirc = min(1, server_flow_total / crah_flow_total)
+        recirculation = max(0, 1 - crah_flow_total / server_flow_total) 
+        bypass = max(0, 1 - server_flow_total / crah_flow_total)
 
         prev_crah_temp_out = crah.temp_out[0] # Simple model has same temp out
 
         # All updated based on previous values
         self.server_temp_out = self.server_temp_in + servers.delta_t
-        self.server_temp_in = (bypass * prev_crah_temp_out + (1 - bypass) * prev_server_temp_out_avg) * np.ones(self.n_servers)
-        self.crah_temp_in = (recirc * prev_server_temp_out_avg + (1 - recirc) * prev_crah_temp_out) * np.ones(self.n_crah)
+        self.server_temp_in = ((1 - recirculation) * prev_crah_temp_out + recirculation * prev_server_temp_out_avg) * np.ones(self.n_servers)
+        self.crah_temp_in = ((1 - bypass) * prev_server_temp_out_avg + bypass * prev_crah_temp_out) * np.ones(self.n_crah)
