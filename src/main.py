@@ -12,8 +12,10 @@ from models.fcnet import FullyConnectedNetwork
 from models.serverconv import ServerConvNetwork
 
 parser = argparse.ArgumentParser()
+# Agent settings
 parser.add_argument("--model", type=str, default="")
-parser.add_argument("--stop_timesteps", type=int, default=500000)
+
+# Env settings
 parser.add_argument("--rafsine", action="store_true")
 parser.add_argument("--avg_load", type=int, default=200)
 parser.add_argument("--n_servers", type=int, default=40)#360)
@@ -22,8 +24,12 @@ parser.add_argument("--n_crah", type=int, default=1)#4)
 parser.add_argument("--n_place", type=int, default=360)
 parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah_flow"])
 parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
+
+# Training settings
 parser.add_argument("--tag", type=str, default="")
+parser.add_argument("--n_workers", type=int, default=1)
 parser.add_argument("--pretrain_timesteps", type=int, default=0)
+parser.add_argument("--stop_timesteps", type=int, default=500000)
 
 args = parser.parse_args()
 
@@ -54,7 +60,7 @@ def trial_name_string(trial):
 # Job load
 # avg_load = load_per_step / step_len * duration / servers => duration = step_len * avg_load * servers / load_per_step
 dt = 1
-load_per_step = 50
+load_per_step = 20
 duration = dt * args.avg_load * args.n_servers / load_per_step
 load_generator = loads.ConstantArrival(load=load_per_step, duration=duration)
 
@@ -98,16 +104,16 @@ config = {
     },
 
     # Worker setup
-    "num_workers": 1,
+    "num_workers": args.n_workers,
     "num_gpus_per_worker": 1 if args.rafsine else 0, # Only give gpu to rafsine
-    "num_cpus_per_worker": 2, # Does this make any difference?
+    "num_cpus_per_worker": 1, # Does this make any difference?
 
     # For logging (does soft_horizon do more, not sure...)
     "callbacks": LoggingCallbacks,
     "soft_horizon": True,
     "no_done_at_end": True,
     "horizon": 100, # This sets how often stuff is sampled for the avg/min/max logging, no...
-    "train_batch_size": 200, # This affects how often stuff is logged, maybe???
+    "train_batch_size": 200 * args.n_workers, # This affects how often stuff is logged, maybe???
     "rollout_fragment_length": 200,
 
     # Agent settings

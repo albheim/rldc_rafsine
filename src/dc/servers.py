@@ -7,8 +7,8 @@ class Servers:
         self.air_vol_heatcap = air_vol_heatcap
         self.R = R
 
-        self.idle_load = 200
-        self.max_load = 500  # W
+        self.idle_load = 50 # Used to be 200
+        self.max_load = 400  # W, Used to be 500
         self.idle_temp_cpu = 35
         self.temp_cpu_target = 60
         self.max_temp_cpu = 85  # C
