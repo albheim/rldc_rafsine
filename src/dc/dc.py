@@ -139,7 +139,7 @@ class DCEnv(gym.Env):
         self.servers.update(self.time, self.dt, placement, self.job[0], self.job[1], self.flowsim.server_temp_in)
 
         # Update CRAH fans
-        crah_temp = action.get("crah_out", 17) # Used to be 22
+        crah_temp = action.get("crah_out", 18) # Used to be 22
         crah_flow = action.get("crah_flow", 1.0 * self.crah.max_flow) # Used to be 0.8
         self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.ambient_temp(self.time))
 
