@@ -39,14 +39,15 @@ class LoggingCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"srv{i}/load"] = env.servers.load[i]
             episode.custom_metrics[f"srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
             #episode.custom_metrics[f"srv{i}/flow"] = env.servers.flow[i]
-            #episode.custom_metrics[f"srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
+            episode.custom_metrics[f"srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
             #episode.custom_metrics[f"srv{i}/temp_out"] = env.flowsim.server_temp_out[i]
 
         episode.custom_metrics["srv/max_temp_cpu"] = env.servers.temp_cpu.max()
-        episode.custom_metrics["srv/server_total_flow"] = np.sum(env.servers.flow)
+        total_server_flow = np.sum(env.servers.flow)
+        episode.custom_metrics["srv/server_total_flow"] = total_server_flow
         episode.custom_metrics["srv/overheated_inlets"] = env.servers.overheated_inlets
-        episode.custom_metrics["srv/avg_temp_in"] = np.mean(env.flowsim.server_temp_in)
-        episode.custom_metrics["srv/avg_temp_out"] = np.mean(env.flowsim.server_temp_out)
+        episode.custom_metrics["srv/avg_temp_in"] = np.dot(env.flowsim.server_temp_in, env.servers.flow) / total_server_flow
+        episode.custom_metrics["srv/avg_temp_out"] = np.dot(env.flowsim.server_temp_out, env.servers.flow) / total_server_flow
         episode.custom_metrics["srv/load_variance"] = np.var(env.servers.load)
 
         for i in range(env.n_crah):

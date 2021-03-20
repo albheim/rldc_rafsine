@@ -65,7 +65,7 @@ duration = dt * args.avg_load * args.n_servers / load_per_step
 load_generator = loads.ConstantArrival(load=load_per_step, duration=duration)
 
 # Ambient temp
-temp_generator = loads.ConstantTemperature(temp=20)
+temp_generator = loads.ConstantTemperature(temp=15)
 
 # Init ray with all resources
 # needs $ ray start --head --port 6379
