@@ -20,8 +20,8 @@ class DCEnv(gym.Env):
         self.job_drop_cost = config.get("job_drop_cost", 10.0)
         self.overheat_cost = config.get("overheat_cost", 0.1)
         self.pretrain_timesteps = config.get("pretrain_timesteps", 0)
-        self.crah_out_setpoint = config.get("crah_out", 22)
-        self.crah_flow_setpoint = config.get("crah_flow", 0.8)
+        self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
+        self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
 
         if config.get("rafsine_flow", True):
             from dc.rafsineflow import RafsineFlow
