@@ -9,8 +9,6 @@ import numpy as np
 import gym
 import time
 
-from dc.simpleflow import SimpleFlow
-from dc.rafsineflow import RafsineFlow
 from dc.servers import Servers
 from dc.crah import CRAH
 
@@ -22,10 +20,14 @@ class DCEnv(gym.Env):
         self.job_drop_cost = config.get("job_drop_cost", 10.0)
         self.overheat_cost = config.get("overheat_cost", 0.1)
         self.pretrain_timesteps = config.get("pretrain_timesteps", 0)
+        self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
+        self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
 
         if config.get("rafsine_flow", True):
+            from dc.rafsineflow import RafsineFlow
             self.flowsim = RafsineFlow(self.dt)
         else:
+            from dc.simpleflow import SimpleFlow
             self.flowsim = SimpleFlow(self.dt, config.get("n_servers", 360), config.get("n_racks", 12), config.get("n_crah", 4))
 
         self.n_servers = self.flowsim.n_servers
@@ -139,8 +141,8 @@ class DCEnv(gym.Env):
         self.servers.update(self.time, self.dt, placement, self.job[0], self.job[1], self.flowsim.server_temp_in)
 
         # Update CRAH fans
-        crah_temp = action.get("crah_out", 18) # Used to be 22
-        crah_flow = action.get("crah_flow", 1.0 * self.crah.max_flow) # Used to be 0.8
+        crah_temp = action.get("crah_out", self.crah_out_setpoint)
+        crah_flow = action.get("crah_flow", self.crah_flow_setpoint * self.crah.max_flow)
         self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.ambient_temp(self.time))
 
         # Run simulation based on current boundary condition

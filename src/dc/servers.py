@@ -17,7 +17,7 @@ class Servers:
 
         # TODO maybe find Ti in better way?
         # Ti is negative since a lower temp than ref means we should lower flow
-        self.Ti = -(self.max_temp_cpu - self.idle_temp_cpu) / (self.max_flow - self.idle_flow)
+        self.Ti = -10 * (self.max_temp_cpu - self.idle_temp_cpu) / (self.max_flow - self.idle_flow)
 
         self.max_fan_power = 25.2 * 2 
 
@@ -37,14 +37,15 @@ class Servers:
         # Update server in correct order
         new_temp_cpu = temp_in + self.R * self.load / self.flow
         #cpu_target_temp = self.idle_temp_cpu + (self.max_temp_cpu - self.idle_temp_cpu) * np.clip((self.load - self.idle_load) / (self.max_load - self.idle_load), 0, 1)
-        self.flow = np.clip(self.flow + dt / self.Ti * (self.temp_cpu_target - self.temp_cpu), self.idle_flow, self.max_flow)
+        new_flow = np.clip(self.flow + dt / self.Ti * (self.temp_cpu_target - self.temp_cpu), self.idle_flow, self.max_flow)
         #self.flow = np.clip(self.flow * self.temp_cpu / self.temp_cpu_target, self.idle_flow, self.max_flow)
         #self.flow = self.idle_flow + (self.max_flow - self.idle_flow) * np.clip((self.load - self.idle_load) / (self.max_load - self.idle_load), 0, 1)
 
-        self.temp_cpu = new_temp_cpu
-        self.overheated_inlets = np.sum(temp_in > 27)
-
         self.delta_t = self.load / (self.air_vol_heatcap * self.flow)
+
+        self.temp_cpu = new_temp_cpu
+        self.flow = new_flow
+        self.overheated_inlets = np.sum(temp_in > 27)
         
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
 
