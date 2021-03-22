@@ -14,6 +14,8 @@ from models.serverconv import ServerConvNetwork
 parser = argparse.ArgumentParser()
 # Agent settings
 parser.add_argument("--model", type=str, default="")
+parser.add_argument("--crah_out", type=float, default=22)
+parser.add_argument("--crah_flow", type=float, default=0.8)
 
 # Env settings
 parser.add_argument("--rafsine", action="store_true")
@@ -93,6 +95,8 @@ config = {
         "actions": args.actions,
         "observations": args.observations,
         "pretrain_timesteps": args.pretrain_timesteps,
+        "crah_out": args.crah_out,
+        "crah_flow": args.crah_flow,
     },
 
     # Model
