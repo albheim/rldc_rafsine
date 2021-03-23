@@ -12,7 +12,7 @@ class Servers:
         self.idle_temp_cpu = 35
         self.max_temp_cpu = 85  # C
         self.target_temp_cpu = 60
-        self.min_flow = 0.0
+        self.min_flow = 0.001 # Have some small number since we dont want divide by zero
         self.max_flow = 0.04 # m3/s
 
         # TODO maybe find Ti in better way?
