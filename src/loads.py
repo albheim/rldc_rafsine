@@ -45,6 +45,6 @@ class SinusTemperature:
     def __call__(self, t):
         return self.offset + self.amplitude * np.sin(2 * np.pi * t / self.period)
     def min_values(self):
-        return self.offset - self.amplitude
+        return self.offset - self.amplitude - 1
     def max_values(self):
-        return self.offset + self.amplitude
+        return self.offset + self.amplitude + 1
