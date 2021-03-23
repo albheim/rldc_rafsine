@@ -7,24 +7,24 @@ class Servers:
         self.air_vol_heatcap = air_vol_heatcap
         self.R = R
 
-        self.idle_load = 50 # Used to be 200
-        self.max_load = 400  # W, Used to be 500
+        self.idle_load = 50 
+        self.max_load = 400  # W
         self.idle_temp_cpu = 35
-        self.temp_cpu_target = 60
         self.max_temp_cpu = 85  # C
-        self.idle_flow = 0.01
+        self.target_temp_cpu = 60
+        self.min_flow = 0.0
         self.max_flow = 0.04 # m3/s
 
         # TODO maybe find Ti in better way?
         # Ti is negative since a lower temp than ref means we should lower flow
-        self.Ti = -10 * (self.max_temp_cpu - self.idle_temp_cpu) / (self.max_flow - self.idle_flow)
+        self.Ti = -10 * (self.max_temp_cpu - self.idle_temp_cpu) / (self.max_flow - self.min_flow)
 
         self.max_fan_power = 25.2 * 2 
 
     def reset(self, ambient_temp):
         self.delta_t = np.zeros(self.n_servers)
         self.temp_cpu = ambient_temp * np.ones(self.n_servers)
-        self.flow = self.idle_flow * np.ones(self.n_servers)
+        self.flow = self.min_flow * np.ones(self.n_servers)
         self.load = self.idle_load * np.ones(self.n_servers)
 
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
@@ -36,11 +36,8 @@ class Servers:
     def update(self, time, dt, placement, load, duration, temp_in):
         # Update server in correct order
         new_temp_cpu = temp_in + self.R * self.load / self.flow
-        #cpu_target_temp = self.idle_temp_cpu + (self.max_temp_cpu - self.idle_temp_cpu) * np.clip((self.load - self.idle_load) / (self.max_load - self.idle_load), 0, 1)
-        delta_flow = dt / self.Ti * (self.temp_cpu_target - self.temp_cpu)
-        new_flow = np.clip(self.flow + delta_flow, self.idle_flow, self.max_flow)
-        #self.flow = np.clip(self.flow * self.temp_cpu / self.temp_cpu_target, self.idle_flow, self.max_flow)
-        #self.flow = self.idle_flow + (self.max_flow - self.idle_flow) * np.clip((self.load - self.idle_load) / (self.max_load - self.idle_load), 0, 1)
+        delta_flow = dt / self.Ti * (self.target_temp_cpu - self.temp_cpu)
+        new_flow = np.clip(self.flow + delta_flow, self.min_flow, self.max_flow)
 
         self.delta_t = self.load / (self.air_vol_heatcap * self.flow)
 
