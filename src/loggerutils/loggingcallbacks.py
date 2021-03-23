@@ -39,7 +39,7 @@ class LoggingCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"srv{i}/load"] = env.servers.load[i]
             episode.custom_metrics[f"srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
             #episode.custom_metrics[f"srv{i}/flow"] = env.servers.flow[i]
-            episode.custom_metrics[f"srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
+            #episode.custom_metrics[f"srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
             #episode.custom_metrics[f"srv{i}/temp_out"] = env.flowsim.server_temp_out[i]
 
         episode.custom_metrics["srv/max_temp_cpu"] = env.servers.temp_cpu.max()
