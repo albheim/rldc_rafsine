@@ -7,11 +7,12 @@ class CRAH:
 
         self.min_temp = 18
         self.max_temp = 27
-        self.min_flow = 0.1 # Used to be 0.4
+        self.min_flow = 0.0 # Used to be 0.4
         self.max_flow = 2.1 # Used to be 2.5
         # servers are 50.4 / 0.04 watt/flow
-        # crah should probably be similar (maybe cheaper) so starting we set it to 2.5 * 50.4 / 0.04 = 3150
-        self.max_fan_power = 3150 / 2
+        # crah should probably be similar (maybe cheaper) so starting we set it to 2.5 * 50.4 / 0.04 = 2646
+        # Assume it is twice as effective
+        self.max_fan_power = 2646 / 2
 
     def reset(self, ambient_temp):
         self.flow = self.min_flow * np.ones(self.n_crah)
