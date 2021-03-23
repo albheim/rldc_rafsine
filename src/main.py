@@ -19,13 +19,14 @@ parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 
 # Env settings
 parser.add_argument("--rafsine", action="store_true")
-parser.add_argument("--avg_load", type=int, default=200)
+parser.add_argument("--avg_load", type=float, default=200)
 parser.add_argument("--n_servers", type=int, default=40)#360)
 parser.add_argument("--n_racks", type=int, default=1)#12)
 parser.add_argument("--n_crah", type=int, default=1)#4)
 parser.add_argument("--n_place", type=int, default=360)
 parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah_flow"])
 parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
+parser.add_argument("--ambient", nargs=2, type=float, default=[20, 0])
 
 # Training settings
 parser.add_argument("--tag", type=str, default="")
@@ -67,7 +68,7 @@ duration = dt * args.avg_load * args.n_servers / load_per_step
 load_generator = loads.ConstantArrival(load=load_per_step, duration=duration)
 
 # Ambient temp
-temp_generator = loads.ConstantTemperature(temp=15)
+temp_generator = loads.SinusTemperature(offset=args.ambient[0], amplitude=args.ambient[1])
 
 # Init ray with all resources
 # needs $ ray start --head --port 6379
@@ -116,7 +117,7 @@ config = {
     "callbacks": LoggingCallbacks,
     "soft_horizon": True,
     "no_done_at_end": True,
-    "horizon": 100, # This sets how often stuff is sampled for the avg/min/max logging, no...
+    "horizon": 100, # Not sure what this actually does for continuing env...
     "train_batch_size": 200 * args.n_workers, # This affects how often stuff is logged, maybe???
     "rollout_fragment_length": 200,
 
