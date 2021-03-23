@@ -87,7 +87,7 @@ class DCEnv(gym.Env):
         observation_spaces_env = {
             "load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
             #"temp_out": gym.spaces.Box(-10, self.servers.max_temp_cpu+10, shape=(self.n_servers,)),
-            "temp_out": gym.spaces.Box(20, 80, shape=(self.n_servers,)),
+            "temp_out": gym.spaces.Box(15, 85, shape=(self.n_servers,)),
             "job": gym.spaces.Box(np.array(self.load_generator.min_values()), np.array(self.load_generator.max_values())),
         }
         # Put it together based on chosed observations
