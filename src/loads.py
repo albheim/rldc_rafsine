@@ -12,12 +12,13 @@ class ConstantArrival:
         return (self.load, self.duration)
 
 class RandomArrival:
-    def __init__(self, load, duration, p):
+    def __init__(self, load, duration, p, seed):
         self.load = load
         self.duration = duration
         self.p = p
+        self.rng = np.random.default_rng(seed)
     def __call__(self, t):
-        if np.random.rand() < self.p:
+        if self.rng.rand() < self.p:
             return (self.load, self.duration)
         else:
             return (0, 0)

@@ -19,6 +19,7 @@ parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 
 # Env settings
 parser.add_argument("--rafsine", action="store_true")
+parser.add_argument("--seed", type=int, default=37)
 parser.add_argument("--avg_load", type=int, default=200)
 parser.add_argument("--n_servers", type=int, default=40)#360)
 parser.add_argument("--n_racks", type=int, default=1)#12)
@@ -28,6 +29,7 @@ parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah
 parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
 
 # Training settings
+parser.add_argument("--worker_seed", type=int, default=None) # Should make training completely reproducible, but might not work well with multiple workers in PPO
 parser.add_argument("--tag", type=str, default="")
 parser.add_argument("--n_workers", type=int, default=1)
 parser.add_argument("--pretrain_timesteps", type=int, default=0)
@@ -86,6 +88,7 @@ config = {
     "env_config": {
         "dt": dt,
         "rafsine_flow": args.rafsine,
+        "seed": args.seed,
         "n_servers": args.n_servers,
         "n_racks": args.n_racks,
         "n_crah": args.n_crah,
@@ -111,6 +114,7 @@ config = {
     "num_workers": args.n_workers,
     "num_gpus_per_worker": 1 if args.rafsine else 0, # Only give gpu to rafsine
     "num_cpus_per_worker": 1, # Does this make any difference?
+    "seed": args.worker_seed,
 
     # For logging (does soft_horizon do more, not sure...)
     "callbacks": LoggingCallbacks,
