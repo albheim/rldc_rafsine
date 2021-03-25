@@ -7,8 +7,8 @@ class CRAH:
 
         self.min_temp = 18
         self.max_temp = 27
-        self.min_flow = 0.0 # Used to be 0.4
-        self.max_flow = 2.1 # Used to be 2.5
+        self.min_flow = 0.1 # To avoid divide by zero
+        self.max_flow = 2.1 
         # servers are 50.4 / 0.04 watt/flow
         # crah should probably be similar (maybe cheaper) so starting we set it to 2.5 * 50.4 / 0.04 = 2646
         # Assume it is twice as effective
