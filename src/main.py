@@ -112,7 +112,8 @@ config = {
     },
 
     # Worker setup
-    "num_workers": args.n_workers,
+    "num_workers": args.n_workers, # How many workers are spawned, data is aggregated from all
+    "num_envs_per_worker": 1, # How many envs on a worker, can speed up if on gpu
     "num_gpus_per_worker": 1 if args.rafsine else 0, # Only give gpu to rafsine
     "num_cpus_per_worker": 1, # Does this make any difference?
     "seed": args.worker_seed,
@@ -121,8 +122,8 @@ config = {
     "callbacks": LoggingCallbacks,
     "soft_horizon": True,
     "no_done_at_end": True,
-    "horizon": 100, # Not sure what this actually does for continuing env...
-    "train_batch_size": 200 * args.n_workers, # This affects how often stuff is logged, maybe???
+    "horizon": 100, # Decides length of episodes
+    "train_batch_size": 200 * args.n_workers, # Decides how often stuff is logged (will do min/max/avg over each episode datapoint)
     "rollout_fragment_length": 200,
 
     # Agent settings
