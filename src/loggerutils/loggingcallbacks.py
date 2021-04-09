@@ -31,7 +31,7 @@ class LoggingCallbacks(DefaultCallbacks):
     def on_episode_end(self, *, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        env_index: int, **kwargs):
-        env = base_env.get_unwrapped()[episode.env_id]
+        env = base_env.get_unwrapped()[env_index]
         #print("Logging at env time {}".format(env.time))
 
         # Log server
@@ -69,7 +69,7 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["power/server_fan"] = env.servers.fan_power
         episode.custom_metrics["power/crah_fan"] = env.crah.fan_power
         episode.custom_metrics["power/compressor"] = env.crah.compressor_power
-        it_power = np.sum(env.servers.load)
+        it_power = np.sum(env.servers.load) + np.sum(env.servers.fan_power)
         cooling_power = env.servers.fan_power + env.crah.fan_power + env.crah.compressor_power
         episode.custom_metrics["power/total_server_load"] = it_power
         episode.custom_metrics["power/PUE"] = (cooling_power + it_power) / it_power
