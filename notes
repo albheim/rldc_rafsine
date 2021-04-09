@@ -18,3 +18,35 @@ After 25000 insim secs the ratio is 1:16
 
 # Meeting
 Added cost for all jobs in queue
+Sum of server flow way bigger than sum of crah flow, but that is not how it looks in visual
+get_averages seems to slow down simulation, 1000 timesteps and get_averages go from taking nothing to taking 0.7 second to run
+
+# Notes
+Run alg scheduling with rl crah settings
+Crah zones with placement
+Baseline crah undvik fullt blås och undvik brinna upp
+ambient temp and variable job load
+split into rafsine_flows.py and simple_flows.py that is used by dc.py
+
+# Next Meeting
+What is the plot we want?
+What data should be logged?
+Have sinusoidal outdoor temp that we can measure?
+Multi agent https://bair.berkeley.edu/blog/2018/12/12/rllib/
+
+Simple med n=360 verkar droppa en hel del även om det går utan, svag trend att den lär sig.
+Simple med n=10 droppar inget
+
+# Notes, gör till tisdag
+Run with less servers and compare to load_balanced
+Run for every rack and compare to load_balanced
+Run with max flow and compare
+Plot all loads
+Plot cpu temp
+Plot energy decrease
+Plot envelope with 95 conf interval
+Skriv RL 1-1.5 pages, förklara för rickard/johannes vad vi gör (var övertydlig), reference ray and PPO
+Test with smarter net (conv and stuff)
+
+# Next Meeting
+Vad är bra
