@@ -155,6 +155,9 @@ class DCEnv(gym.Env):
         self.total_energy_cost = self.energy_cost * total_energy 
         self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
         self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
+        # For rafsine?
+        #avg_temp_in = np.dot(self.flowsim.server_temp_in, self.servers.flow) / np.sum(self.servers.flow)
+        #self.total_overheat_cost = 10 * max(0, avg_temp_in - 27)
         total_cost = self.total_energy_cost + self.total_job_drop_cost + self.total_overheat_cost
         reward = -total_cost
 

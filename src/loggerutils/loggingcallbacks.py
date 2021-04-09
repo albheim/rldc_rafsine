@@ -25,13 +25,13 @@ class LoggingCallbacks(DefaultCallbacks):
                          policies: Dict[str, Policy],
                          episode: MultiAgentEpisode, env_index: int, **kwargs):
         pass
+    def on_episode_step(self, *, worker: RolloutWorker, base_env: BaseEnv,
+                        episode: MultiAgentEpisode, env_index: int, **kwargs):
+        pass
     def on_episode_end(self, *, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        env_index: int, **kwargs):
-        pass
-    def on_episode_step(self, *, worker: RolloutWorker, base_env: BaseEnv,
-                        episode: MultiAgentEpisode, env_index: int, **kwargs):
-        env = base_env.get_unwrapped()[0]
+        env = base_env.get_unwrapped()[episode.env_id]
         #print("Logging at env time {}".format(env.time))
 
         # Log server
@@ -50,6 +50,7 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["srv/avg_temp_out"] = np.dot(env.flowsim.server_temp_out, env.servers.flow) / total_server_flow
         episode.custom_metrics["srv/avg_temp_cpu"] = np.mean(env.servers.temp_cpu)
         episode.custom_metrics["srv/load_variance"] = np.var(env.servers.load)
+
 
         for i in range(env.n_crah):
             episode.custom_metrics[f"crah{i}/temp_in"] = env.flowsim.crah_temp_in[i]

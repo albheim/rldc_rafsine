@@ -21,6 +21,7 @@ parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 parser.add_argument("--rafsine", action="store_true")
 parser.add_argument("--seed", type=int, default=37)
 parser.add_argument("--avg_load", type=float, default=200)
+parser.add_argument("--load_size", type=float, default=20)
 parser.add_argument("--n_servers", type=int, default=40)#360)
 parser.add_argument("--n_racks", type=int, default=1)#12)
 parser.add_argument("--n_crah", type=int, default=1)#4)
@@ -63,11 +64,9 @@ def trial_name_string(trial):
     return name
 
 # Job load
-# avg_load = load_per_step / step_len * duration / servers => duration = step_len * avg_load * servers / load_per_step
 dt = 1
-load_per_step = 20
-duration = dt * args.avg_load * args.n_servers / load_per_step
-load_generator = loads.ConstantArrival(load=load_per_step, duration=duration)
+duration = dt * args.avg_load * args.n_servers / args.load_size
+load_generator = loads.ConstantArrival(load=args.load_size, duration=duration)
 
 # Ambient temp
 temp_generator = loads.SinusTemperature(offset=args.ambient[0], amplitude=args.ambient[1])
@@ -150,5 +149,5 @@ results = tune.run(
     callbacks=callbacks, 
     stop=stop, 
     trial_name_creator=trial_name_string,
-    verbose=1,
+    verbose=2,
     )
