@@ -41,13 +41,13 @@ class DCEnv(gym.Env):
         self.crah = CRAH(self.n_crah, air_vol_heatcap)
 
         # Jobs
-        self.load_generator = config["load_generator"]
+        self.load_generator = config["load_generator"]()
 
         self.actions = config.get("actions", ["server", "crah_out", "crah_flow"])
         self.observations = config.get("observations", ["temp_out", "load", "job"])
 
         # Ambient temp
-        self.ambient_temp = config["ambient_temp"]
+        self.ambient_temp = config["ambient_temp"]()
 
         # Gym environment stuff
         # Generate all individual action spaces
@@ -150,10 +150,11 @@ class DCEnv(gym.Env):
         total_energy = (self.servers.fan_power + self.crah.fan_power + self.crah.compressor_power) * self.dt
         self.total_energy_cost = self.energy_cost * total_energy 
         self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
-        self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
+        # self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
         # For rafsine?
-        #avg_temp_in = np.dot(self.flowsim.server_temp_in, self.servers.flow) / np.sum(self.servers.flow)
-        #self.total_overheat_cost = 10 * max(0, avg_temp_in - 27)
+        # avg_temp_in = np.dot(self.flowsim.server_temp_in, self.servers.flow) / np.sum(self.servers.flow)
+        # self.total_overheat_cost = 10 * max(0, avg_temp_in - 27)
+        self.total_overheat_cost = self.overheat_cost * np.mean(np.maximum(0, self.flowsim.server_temp_in - 27))
         total_cost = self.total_energy_cost + self.total_job_drop_cost + self.total_overheat_cost
         reward = -total_cost
 
@@ -169,10 +170,11 @@ class DCEnv(gym.Env):
             "temp_out": self.flowsim.server_temp_out,
             "job": self.job,
         }
-        return tuple(map(lambda x: self.scale_to(*x), zip(
+        state = tuple(map(lambda x: self.scale_to(*x), zip(
             map(states.__getitem__, self.observations), 
             self.observation_space_env, 
             self.observation_space_target)))
+        return state
     
     def scale_to(self, x, original_range, target_range):
         """
