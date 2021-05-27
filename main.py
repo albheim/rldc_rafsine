@@ -6,7 +6,7 @@ import ray
 import ray.tune as tune
 from ray.rllib.models import ModelCatalog
 
-from util import loads 
+from loads.loads import ConstantArrival, SinusTemperature
 from dc.dc import DCEnv
 from util.loggingcallbacks import LoggingCallbacks
 
@@ -52,11 +52,11 @@ def trial_name(trial):
 dt = 1
 duration = dt * args.avg_load * args.n_servers / args.load_size
 def load_generator_creator():
-    return loads.ConstantArrival(load=args.load_size, duration=duration)
+    return ConstantArrival(load=args.load_size, duration=duration)
 
 # Ambient temp
 def temp_generator_creator():
-    return loads.SinusTemperature(offset=args.ambient[0], amplitude=args.ambient[1])
+    return SinusTemperature(offset=args.ambient[0], amplitude=args.ambient[1])
 
 # Init ray with all resources
 # needs $ ray start --head --port 6379
