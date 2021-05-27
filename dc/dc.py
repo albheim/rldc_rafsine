@@ -13,7 +13,7 @@ class DCEnv(gym.Env):
         self.dt = config.get("dt", 1)
         self.seed = config.get("seed", 37)
         self.energy_cost = config.get("energy_cost", 0.00001)
-        self.job_drop_cost = config.get("job_drop_cost", 10.0)
+        self.job_drop_cost = config.get("job_drop_cost", 50.0)
         self.overheat_cost = config.get("overheat_cost", 0.1)
         self.pretrain_timesteps = config.get("pretrain_timesteps", 0)
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)

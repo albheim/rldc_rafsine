@@ -1,11 +1,14 @@
+import os
 import argparse
+from datetime import datetime
 
 import ray
+import ray.tune as tune
 from ray.rllib.models import ModelCatalog
 
-import loads 
+from util import loads 
 from dc.dc import DCEnv
-from loggerutils.loggingcallbacks import LoggingCallbacks
+from util.loggingcallbacks import LoggingCallbacks
 
 import models
 
@@ -30,8 +33,8 @@ parser.add_argument("--ambient", nargs=2, type=float, default=[20, 0])
 
 # Training settings
 parser.add_argument("--worker_seed", type=int, default=None) # Should make training completely reproducible, but might not work well with multiple workers in PPO
-parser.add_argument("--tag", type=str, default="")
-parser.add_argument("--n_workers", type=int, default=1)
+parser.add_argument("--tag", type=str, default="default")
+parser.add_argument("--n_envs", type=int, default=1) # envs for each ppo agent
 parser.add_argument("--pretrain_timesteps", type=int, default=0)
 parser.add_argument("--stop_timesteps", type=int, default=500000)
 
@@ -42,25 +45,8 @@ if args.rafsine:
     vars(args)["n_racks"] = 12
     vars(args)["n_crah"] = 4
 
-def trial_name_string(trial):
-    """
-    Args:
-        trial (Trial): A generated trial object.
-
-    Returns:
-        trial_name (str): String representation of Trial.
-    """
-    name = str(trial)
-    name += "_PPO"
-    if args.rafsine:
-        name += "_RAFSINE" 
-    else: 
-        name += "_SIMPLE"
-    name += "_ACT_" + "_".join(args.actions)
-    name += "_OBS_" + "_".join(args.observations)
-    if args.tag != "":
-        name += "_TAG_" + args.tag
-    return name
+def trial_name(trial):
+    return "trial"
 
 # Job load
 dt = 1
@@ -77,14 +63,16 @@ def temp_generator_creator():
 ray.init(address="auto")
 
 # Register env with ray
-ray.tune.register_env("DCEnv", DCEnv)
+tune.register_env("DCEnv", DCEnv)
 
 # Register models with ray
 #ModelCatalog.register_custom_model("fc", FullyConnectedNetwork)
 #ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
 
-ray.tune.run(
+analysis = tune.run(
     "PPO", 
+    name = args.tag + datetime.now().strftime("_%Y-%m-%d_%H-%M-%S"),
+    local_dir = os.path.join("~", "ray_results", "PPO", "RAFSINE" if args.rafsine else "SIMPLE", "DCEnv"),
     config = {
         # Environment
         "env": "DCEnv",
@@ -110,12 +98,17 @@ ray.tune.run(
             "custom_model": args.model,
             "custom_model_config": {
                 "n_servers": args.n_servers,
+                "n_hidden": tune.grid_search([64, 256]),
+                "inject": tune.grid_search([True, False]),
+                "activation": "relu",
+                "n_conv_layers": tune.grid_search([1, 3]),
+                "n_conv_hidden": tune.grid_search([1, 3]),
             },
         },
 
         # Worker setup
-        "num_workers": args.n_workers, # How many workers are spawned, data is aggregated from all
-        "num_envs_per_worker": 1, # How many envs on a worker, can speed up if on gpu
+        "num_workers": args.n_envs, # How many workers are spawned, ppo use this many envs and data is aggregated from all
+        "num_envs_per_worker": 1, # How many envs on each worker?
         "num_gpus_per_worker": 1 if args.rafsine else 0, # Only give gpu to rafsine
         "num_cpus_per_worker": 1, # Does this make any difference?
         "seed": args.worker_seed,
@@ -125,11 +118,12 @@ ray.tune.run(
         "soft_horizon": True,
         "no_done_at_end": True,
         "horizon": 200, # Decides length of episodes, should for now be same as rollout_frament_length
-        "train_batch_size": 200 * args.n_workers, # Collects batch of data from different workes, does min/max/avg over it and trains on it
+        "train_batch_size": 200 * args.n_envs, # Collects batch of data from different workes, does min/max/avg over it and trains on it
         "rollout_fragment_length": 200, # How much data is colelcted by each worker before sending in data for training
 
         # Agent settings
         "vf_clip_param": 1000000.0, # Set this to be around the size of value function? Git issue about this not being good, just set high?
+
 
         # Data settings
         #"observation_filter": "MeanStdFilter", # Test this
@@ -140,6 +134,18 @@ ray.tune.run(
     stop={
         "timesteps_total": args.stop_timesteps,
     }, 
-    trial_name_creator=trial_name_string,
+    trial_name_creator=trial_name,
+    checkpoint_at_end=True,
     verbose=1,
-    )
+)
+
+best_trial = analysis.best_trial  # Get best trial
+best_config = analysis.best_config  # Get best trial's hyperparameters
+best_logdir = analysis.best_logdir  # Get best trial's logdir
+best_checkpoint = analysis.best_checkpoint  # Get best trial's best checkpoint
+best_result = analysis.best_result  # Get best trial's last results
+best_result_df = analysis.best_result_df  # Get best result as pandas dataframe
+
+print(best_trial)
+print(best_config)
+print(best_logdir)
