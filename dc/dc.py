@@ -11,7 +11,6 @@ from dc.crah import CRAH
 class DCEnv(gym.Env):
     def __init__(self, config={}):
         self.dt = config.get("dt", 1)
-        self.seed = config.get("seed", 37)
         self.energy_cost = config.get("energy_cost", 0.00001)
         self.job_drop_cost = config.get("job_drop_cost", 50.0)
         self.overheat_cost = config.get("overheat_cost", 0.1)
@@ -93,10 +92,11 @@ class DCEnv(gym.Env):
         self.observation_space_target = gym.spaces.Tuple(tuple(map(observation_spaces_target.__getitem__, self.observations)))
         # The source space is what we approximate the values to be within in the environment
         self.observation_space_env = gym.spaces.Tuple(tuple(map(observation_spaces_env.__getitem__, self.observations)))
+
+    def seed(self, seed):
+        self.rng = np.random.default_rng(seed)
         
     def reset(self):
-        self.rng = np.random.default_rng(self.seed)
-
         self.time = 0
 
         self.servers.reset(self.ambient_temp(self.time))

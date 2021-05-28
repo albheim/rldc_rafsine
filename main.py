@@ -6,9 +6,11 @@ import ray
 import ray.tune as tune
 from ray.rllib.models import ModelCatalog
 
-from loads.loads import ConstantArrival, SinusTemperature
-from dc.dc import DCEnv
+from loads.temperatures import SinusTemperature
+from loads.workloads import ConstantArrival
 from util.loggingcallbacks import LoggingCallbacks
+from dc.dc import DCEnv
+from models.serverconv import ServerConvNetwork
 
 import models
 
@@ -32,7 +34,6 @@ parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "j
 parser.add_argument("--ambient", nargs=2, type=float, default=[20, 0])
 
 # Training settings
-parser.add_argument("--worker_seed", type=int, default=None) # Should make training completely reproducible, but might not work well with multiple workers in PPO
 parser.add_argument("--tag", type=str, default="default")
 parser.add_argument("--n_envs", type=int, default=1) # envs for each ppo agent
 parser.add_argument("--pretrain_timesteps", type=int, default=0)
@@ -65,15 +66,14 @@ ray.init(address="auto")
 # Register env with ray
 tune.register_env("DCEnv", DCEnv)
 
-# Register models with ray
-#ModelCatalog.register_custom_model("fc", FullyConnectedNetwork)
-#ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
+# Register model with ray
+ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
 
 analysis = tune.run(
     "PPO", 
-    name = args.tag + datetime.now().strftime("_%Y-%m-%d_%H-%M-%S"),
-    local_dir = os.path.join("~", "ray_results", "PPO", "RAFSINE" if args.rafsine else "SIMPLE", "DCEnv"),
-    config = {
+    name=args.tag + datetime.now().strftime("_%Y-%m-%d_%H-%M-%S"),
+    local_dir=os.path.join("results", "PPO", "RAFSINE" if args.rafsine else "SIMPLE", "DCEnv"),
+    config={
         # Environment
         "env": "DCEnv",
         "env_config": {
@@ -98,7 +98,7 @@ analysis = tune.run(
             "custom_model": args.model,
             "custom_model_config": {
                 "n_servers": args.n_servers,
-                "n_hidden": tune.grid_search([64, 256]),
+                "n_hidden": tune.grid_search([32, 128]),
                 "inject": tune.grid_search([True, False]),
                 "activation": "relu",
                 "n_conv_layers": tune.grid_search([1, 3]),
@@ -111,7 +111,7 @@ analysis = tune.run(
         "num_envs_per_worker": 1, # How many envs on each worker?
         "num_gpus_per_worker": 1 if args.rafsine else 0, # Only give gpu to rafsine
         "num_cpus_per_worker": 1, # Does this make any difference?
-        "seed": args.worker_seed,
+        "seed": args.seed,
 
         # For logging (does soft_horizon do more, not sure...)
         "callbacks": LoggingCallbacks,
@@ -136,6 +136,8 @@ analysis = tune.run(
     }, 
     trial_name_creator=trial_name,
     checkpoint_at_end=True,
+    metric="episode_reward_mean",
+    mode="max",
     verbose=1,
 )
 
