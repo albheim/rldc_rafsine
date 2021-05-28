@@ -95,6 +95,7 @@ class DCEnv(gym.Env):
 
     def seed(self, seed):
         self.rng = np.random.default_rng(seed)
+        self.load_generator.seed(seed)
         
     def reset(self):
         self.time = 0
