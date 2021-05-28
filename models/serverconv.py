@@ -18,7 +18,7 @@ class ServerConvNetwork(TFModelV2):
 
     def __init__(self, obs_space, action_space, num_outputs, model_config, name, 
             n_servers, n_hidden=256, inject=False, activation='relu',
-            n_conv_layers=1, n_conv_hidden=1):
+            n_conv_layers=1, n_conv_hidden=1, n_pre_layers=1, n_crah_layers=1, n_value_layers=2):
         super(ServerConvNetwork, self).__init__(
             obs_space, action_space, num_outputs, model_config, name)
 
@@ -28,29 +28,40 @@ class ServerConvNetwork(TFModelV2):
         inputs = [input_temp, input_load, input_job]
 
         all_conc = tf.keras.layers.Concatenate()(inputs)
-        server_inject = tf.keras.layers.Dense(n_servers, activation=activation)(all_conc)
 
+        # Pre net, goes both to conv and crah 
+        pre = all_conc
+        for i in range(n_crah_layers):
+            pre = tf.keras.layers.Dense(n_hidden, activation=activation, name=f"pre_dense{i}")(pre)
+
+        # Conv input
+        server_inject = tf.keras.layers.Dense(n_servers, activation=activation)(all_conc)
         server_inputs = [input_temp, input_load]
         if inject:
             server_inputs += [server_inject]
-        
-        server_reshaped = [tf.keras.layers.Reshape(target_shape=(-1, 1))(x) for x in server_inputs]
 
+        # Job placement
+        server_reshaped = [tf.keras.layers.Reshape(target_shape=(-1, 1))(x) for x in server_inputs]
         convlayer = tf.keras.layers.Concatenate(axis=2, name="server_concat")(server_reshaped)
-        for i in range(n_conv_layers - 1):
-            convlayer = tf.keras.layers.Conv1D(n_conv_hidden, 1, activation=activation, name="server_conv"+str(i))(convlayer)
+        for i in range(n_conv_layers):
+            convlayer = tf.keras.layers.Conv1D(n_conv_hidden, 1, activation=activation, name=f"server_conv{i}")(convlayer)
         prob_conv = tf.keras.layers.Conv1D(1, 1, activation=activation, name="server_conv_last")(convlayer)
         prob_flattened = tf.keras.layers.Flatten(name="server_out")(prob_conv)
         
-        dense = tf.keras.layers.Dense(n_hidden, activation=activation, name="crah_dense1")(all_conc)
-        dense = tf.keras.layers.Dense(n_hidden, activation=activation, name="crah_dense2")(dense)
-        dense_out = tf.keras.layers.Dense(4, name="crah_out")(dense)
+        # Crah settings
+        crah_dense = all_conc
+        for i in range(n_crah_layers):
+            crah_dense = tf.keras.layers.Dense(n_hidden, activation=activation, name=f"crah_dense{i}")(crah_dense)
+        crah_dense_out = tf.keras.layers.Dense(4, name="crah_out")(crah_dense)
 
-        action_out = tf.keras.layers.Concatenate(name="action_out")([prob_flattened, dense_out])
+        # Full action distribution information
+        action_out = tf.keras.layers.Concatenate(name="action_out")([prob_flattened, crah_dense_out])
 
-        dense = tf.keras.layers.Dense(n_hidden, activation=activation, name="value_dense1")(all_conc)
-        dense = tf.keras.layers.Dense(n_hidden, activation=activation, name="value_dense2")(dense)
-        value_out = tf.keras.layers.Dense(1, name="value_out")(dense)
+        # Value net
+        value_dense = all_conc
+        for i in range(n_value_layers):
+            value_dense = tf.keras.layers.Dense(n_hidden, activation=activation, name=f"value_dense{i}")(value_dense)
+        value_out = tf.keras.layers.Dense(1, name="value_out")(value_dense)
 
         self.base_model = tf.keras.Model(inputs=inputs, outputs=[action_out, value_out])
         #self.register_variables(self.base_model.variables)
