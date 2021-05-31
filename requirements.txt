@@ -1,0 +1,8 @@
+numpy
+scipy
+matplotlib
+seaborn
+tensorflow
+ray
+ray[rllib]
+ray[tune]
