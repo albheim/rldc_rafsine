@@ -23,14 +23,12 @@ Finally the simulation is run with
 ```python
 python3 main.py
 ```
-where there are some optional parameters available
+where there are some optional parameters available among which we have
 ```
   --rafsine # Use rafsine instead of simple simulation, needs additional git repo
-  --actions [ACTIONS ...] # List what actions the agent should take
-  --observations [OBSERVATIONS ...] # List what observations the agent should get
-  --n_samples # How many samples the hyperparameter search should run over
-  --tag # Name of the run
-  --stop_timesteps # How many seconds (in simulation) should each sample run
+  --n_samples NS # How many samples the hyperparameter search should run over
+  --tag "SOME STRING" # Name of the run
+  --stop_timesteps NT # How many seconds (in simulation) should each sample run
 ```
 
 ## Analyse
