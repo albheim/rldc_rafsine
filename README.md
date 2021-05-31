@@ -6,8 +6,10 @@ a more complex CFD based one described [here]()
 ## Installation
 Clone this repo to you local drive and install the packages defined in `requirements.txt` using any desired method.
 ```
-pip install -f requirements.txt
+pip install -r requirements.txt
 ``` 
+
+It has been tested in conda envs using python 3.8.10
 
 ## Ray setup 
 First you start the ray daemon depending on your cluster. For a local one-node cluster this is done with
@@ -27,7 +29,7 @@ where there are some optional parameters available among which we have
 ```
   --rafsine # Use rafsine instead of simple simulation, needs additional git repo
   --n_samples NS # How many samples the hyperparameter search should run over
-  --tag "SOME STRING" # Name of the run
+  --tag SOME_NAME # Name of the run
   --stop_timesteps NT # How many seconds (in simulation) should each sample run
 ```
 

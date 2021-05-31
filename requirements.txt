@@ -4,5 +4,6 @@ matplotlib
 seaborn
 tensorflow
 ray
+ray[default]
 ray[rllib]
 ray[tune]
