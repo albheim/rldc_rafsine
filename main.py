@@ -7,35 +7,33 @@ import ray.tune as tune
 from ray.rllib.models import ModelCatalog
 
 from loads.temperatures import SinusTemperature
-from loads.workloads import ConstantArrival
+from loads.workloads import RandomArrival
 from util.loggingcallbacks import LoggingCallbacks
 from dc.dc import DCEnv
 from models.serverconv import ServerConvNetwork
 
-import models
-
 parser = argparse.ArgumentParser()
-# Agent settings
-parser.add_argument("--model", type=str, default="")
+
+# Env settings
+parser.add_argument("--rafsine", action="store_true", help="If flag is set the rafsine backend will be used, otherwise the simple simulation is used.")
+parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah_flow"])
+parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
 parser.add_argument("--crah_out_setpoint", type=float, default=22)
 parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 
-# Env settings
-parser.add_argument("--rafsine", action="store_true")
-parser.add_argument("--seed", type=int, default=37)
+parser.add_argument("--ambient", nargs=2, type=float, default=[20, 0])
 parser.add_argument("--avg_load", type=float, default=200)
 parser.add_argument("--load_size", type=float, default=20)
-parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah_flow"])
-parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
-parser.add_argument("--ambient", nargs=2, type=float, default=[20, 0])
-parser.add_argument("--n_samples", type=int, default=1)
-parser.add_argument("--horizon", type=int, default=200)
+parser.add_argument("--job_p", type=float, default=1.0, help="Probability that a job arrives each time instance.")
 
 # Training settings
+parser.add_argument("--seed", type=int, default=37, help="Seed used for everything, should make the simulations completely reproducible.")
 parser.add_argument("--tag", type=str, default="default")
 parser.add_argument("--n_envs", type=int, default=1) # envs for each ppo agent
-parser.add_argument("--pretrain_timesteps", type=int, default=0)
 parser.add_argument("--stop_timesteps", type=int, default=500000)
+#parser.add_argument("--resume", type=str, default="", help="String with path to run to resume.")
+parser.add_argument("--n_samples", type=int, default=1)
+parser.add_argument("--horizon", type=int, default=200)
 
 args = parser.parse_args()
 
@@ -45,9 +43,9 @@ n_crah = 4
 
 # Job load
 dt = 1
-duration = dt * args.avg_load * n_servers / args.load_size
+duration = dt * args.avg_load * n_servers / (args.load_size * args.job_p)
 def load_generator_creator():
-    return ConstantArrival(load=args.load_size, duration=duration)
+    return RandomArrival(load=args.load_size, duration=duration, p=args.job_p)
 
 # Ambient temp
 def temp_generator_creator():
@@ -75,36 +73,35 @@ analysis = tune.run(
             "n_servers": n_servers,
             "n_racks": n_racks,
             "n_crah": n_crah,
-            "n_place": n_servers,
             "load_generator": load_generator_creator,
             "ambient_temp": temp_generator_creator,
             "actions": args.actions,
             "observations": args.observations,
-            "pretrain_timesteps": args.pretrain_timesteps,
             "crah_out_setpoint": args.crah_out_setpoint,
             "crah_flow_setpoint": args.crah_flow_setpoint,
         },
 
         # Model
         "model": {
-            "custom_model": args.model,
+            "custom_model": "serverconv",
             "custom_model_config": {
                 "n_servers": n_servers,
-                "activation": tune.choice(["relu", "tanh"]),
+                "activation": "tanh", #tune.choice(["relu", "tanh"]),
                 "n_hidden": tune.choice([32, 128, 512]),
                 "n_pre_layers": tune.choice([0, 1, 3]), 
-                "inject": tune.choice([True, False]), # If true, pre is injected into server conv
+                "inject": False, #tune.choice([True, False]), # If true, pre is injected into server conv
                 "n_conv_layers": tune.choice([0, 1, 3]),
-                "n_conv_hidden": tune.choice([1, 2, 4]),
+                "n_conv_hidden": tune.choice([1, 3]),
                 "n_crah_layers": tune.choice([0, 1, 3]),
-                "n_value_layers": tune.choice([0, 1, 3]),
+                "n_value_layers": tune.choice([0, 1]),
+                "empty": args.actions[0] == "none",
             },
         },
 
         # Worker setup
         "num_workers": args.n_envs, # How many workers are spawned, ppo use this many envs and data is aggregated from all
         "num_envs_per_worker": 1, # How many envs on each worker?
-        "num_gpus_per_worker": 1 if args.rafsine else 0, # Only give gpu to rafsine
+        "num_gpus_per_worker": 1 / args.n_envs if args.rafsine else 0, # Only give gpu to rafsine
         "num_cpus_per_worker": 1, # Does this make any difference?
         "seed": args.seed,
 
@@ -113,6 +110,8 @@ analysis = tune.run(
         "soft_horizon": True,
         "no_done_at_end": True,
         "horizon": args.horizon, # Decides length of episodes, should for now be same as rollout_frament_length
+
+        # Training
         "train_batch_size": args.horizon * args.n_envs, # Collects batch of data from different workes, does min/max/avg over it and trains on it
         "rollout_fragment_length": args.horizon, # How much data is colelcted by each worker before sending in data for training
 
@@ -128,13 +127,18 @@ analysis = tune.run(
     stop={
         "timesteps_total": args.stop_timesteps,
     }, 
+
+    # Logging directories
     name=args.tag + datetime.now().strftime("_%Y-%m-%d_%H-%M-%S"),
     local_dir=os.path.join("results", "PPO", "RAFSINE" if args.rafsine else "SIMPLE", "DCEnv"),
     trial_name_creator=lambda trial: "trial",
+
+    # Tuning
     num_samples=args.n_samples,
-    checkpoint_at_end=True,
     metric="episode_reward_mean",
     mode="max",
+
+    checkpoint_at_end=True,
     verbose=1,
 )
 
