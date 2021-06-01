@@ -34,10 +34,10 @@ class LoggingCallbacks(DefaultCallbacks):
         env = base_env.get_unwrapped()[env_index]
         #print("Logging at env time {}".format(env.time))
 
-        # Log server
-        for i in range(env.n_servers):
-            episode.custom_metrics[f"srv{i}/load"] = env.servers.load[i]
-            episode.custom_metrics[f"srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
+        # Log server, this takes a lot of memory so turned off most of the time
+        #for i in range(env.n_servers):
+            #episode.custom_metrics[f"srv{i}/load"] = env.servers.load[i]
+            #episode.custom_metrics[f"srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
             #episode.custom_metrics[f"srv{i}/flow"] = env.servers.flow[i]
             #episode.custom_metrics[f"srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
             #episode.custom_metrics[f"srv{i}/temp_out"] = env.flowsim.server_temp_out[i]
