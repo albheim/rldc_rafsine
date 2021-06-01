@@ -1,9 +1,5 @@
-import pandas as pd
-import os
-import heapq
 import numpy as np
 import gym
-import time
 
 from dc.servers import Servers
 from dc.crah import CRAH
@@ -14,7 +10,6 @@ class DCEnv(gym.Env):
         self.energy_cost = config.get("energy_cost", 0.00001)
         self.job_drop_cost = config.get("job_drop_cost", 50.0)
         self.overheat_cost = config.get("overheat_cost", 0.1)
-        self.pretrain_timesteps = config.get("pretrain_timesteps", 0)
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
         self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
 
@@ -72,20 +67,21 @@ class DCEnv(gym.Env):
         observation_spaces = {
             "load": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
             "temp_out": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
-            "job": gym.spaces.Box(-100.0, 100.0, shape=(2,)),
+            "job": gym.spaces.Box(-100.0, 100.0, shape=(1,)),
         }
         observation_spaces_target = {
             "load": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
             "temp_out": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
-            "job": gym.spaces.Box(-1.0, 1.0, shape=(2,)),
+            "job": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
         }
         observation_spaces_env = {
             "load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
             #"temp_out": gym.spaces.Box(-10, self.servers.max_temp_cpu+10, shape=(self.n_servers,)),
             "temp_out": gym.spaces.Box(15, 85, shape=(self.n_servers,)),
-            "job": gym.spaces.Box(np.array(self.load_generator.min_values()), np.array(self.load_generator.max_values())),
+            "job": gym.spaces.Box(0, 1, shape=(1,)),
+            #"job": gym.spaces.Box(np.array(self.load_generator.min_values()), np.array(self.load_generator.max_values())),
         }
-        # Put it together based on chosed observations
+        # Put it together based on chosen observations
         # The real space is just made bigger than the target to fit anything that falls outside, only needed for ray to be happy
         self.observation_space = gym.spaces.Tuple(tuple(map(observation_spaces.__getitem__, self.observations)))
         # The target space is -1..1
@@ -116,10 +112,6 @@ class DCEnv(gym.Env):
         return state
 
     def step(self, action):
-        # Not the nicest way, but it should work. Just empty action if pretrain and we will choose default actions
-        if self.time < self.pretrain_timesteps:
-            action = {}
-
         clipped_action = map(lambda x: self.clip_action(*x), zip(action, self.action_space))
         rescaled_action = map(lambda x: self.scale_to(*x), zip(clipped_action, self.action_space, self.action_space_env))
         action = dict(zip(self.actions, rescaled_action))
@@ -169,7 +161,7 @@ class DCEnv(gym.Env):
         states = {
             "load": self.servers.load,
             "temp_out": self.flowsim.server_temp_out,
-            "job": self.job,
+            "job": 0 if self.job == (0, 0) else 1,
         }
         state = tuple(map(lambda x: self.scale_to(*x), zip(
             map(states.__getitem__, self.observations), 
