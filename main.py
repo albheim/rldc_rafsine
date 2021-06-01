@@ -16,8 +16,8 @@ parser = argparse.ArgumentParser()
 
 # Env settings
 parser.add_argument("--rafsine", action="store_true", help="If flag is set the rafsine backend will be used, otherwise the simple simulation is used.")
-parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah_flow"])
-parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "job"])
+parser.add_argument("--actions", nargs="+", default=["server_placement", "crah_temp_out", "crah_flow"])
+parser.add_argument("--observations", nargs="+", default=["server_temp_out", "server_load", "job"])
 parser.add_argument("--crah_out_setpoint", type=float, default=22)
 parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 
@@ -94,7 +94,6 @@ analysis = tune.run(
                 "n_conv_hidden": tune.choice([1, 3]),
                 "n_crah_layers": tune.choice([0, 1, 3]),
                 "n_value_layers": tune.choice([0, 1]),
-                "empty": args.actions[0] == "none",
             },
         },
 

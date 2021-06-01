@@ -37,8 +37,8 @@ class DCEnv(gym.Env):
         # Jobs
         self.load_generator = config["load_generator"]()
 
-        self.actions = config.get("actions", ["server", "crah_out", "crah_flow"])
-        self.observations = config.get("observations", ["temp_out", "load", "job"])
+        self.actions = config.get("actions", ["server_placement", "crah_temp_out", "crah_flow"])
+        self.observations = config.get("observations", ["server_temp_out", "server_load", "job"])
 
         # Ambient temp
         self.ambient_temp = config["ambient_temp"]()
@@ -47,47 +47,45 @@ class DCEnv(gym.Env):
         # Generate all individual action spaces
         action_spaces_agent = {
             "none": gym.spaces.Discrete(2), # If running with other algorithms
-            "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
-            "server": gym.spaces.Discrete(self.flowsim.n_servers), 
-            "crah_out": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
+            "server_placement": gym.spaces.Discrete(self.flowsim.n_servers), 
+            "crah_temp_out": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
             "crah_flow": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
         }
         action_spaces_env = {
             "none": gym.spaces.Discrete(2),
-            "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
-            "server": gym.spaces.Discrete(self.flowsim.n_servers), 
-            "crah_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(1,)),
+            "server_placement": gym.spaces.Discrete(self.flowsim.n_servers), 
+            "crah_temp_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(1,)),
             "crah_flow": gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(1,)),
         }
         # Put it together based on chosen actions
-        self.action_space = gym.spaces.Tuple(tuple(map(action_spaces_agent.__getitem__, self.actions)))
-        self.action_space_env = gym.spaces.Tuple(tuple(map(action_spaces_env.__getitem__, self.actions)))
+        self.action_space = gym.spaces.Dict({k: action_spaces_agent[k] for k in self.actions})
+        self.action_space_env = action_spaces_env
 
         # All individual observation spaces
         observation_spaces = {
-            "load": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
-            "temp_out": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
+            "server_load": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
+            "server_temp_out": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
             "job": gym.spaces.Box(-100.0, 100.0, shape=(1,)),
         }
-        observation_spaces_target = {
-            "load": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
-            "temp_out": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
+        observation_spaces_agent = {
+            "server_load": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
+            "server_temp_out": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
             "job": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
         }
         observation_spaces_env = {
-            "load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
+            "server_load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
             #"temp_out": gym.spaces.Box(-10, self.servers.max_temp_cpu+10, shape=(self.n_servers,)),
-            "temp_out": gym.spaces.Box(15, 85, shape=(self.n_servers,)),
+            "server_temp_out": gym.spaces.Box(15, 85, shape=(self.n_servers,)),
             "job": gym.spaces.Box(0, 1, shape=(1,)),
             #"job": gym.spaces.Box(np.array(self.load_generator.min_values()), np.array(self.load_generator.max_values())),
         }
         # Put it together based on chosen observations
         # The real space is just made bigger than the target to fit anything that falls outside, only needed for ray to be happy
-        self.observation_space = gym.spaces.Tuple(tuple(map(observation_spaces.__getitem__, self.observations)))
+        self.observation_space = gym.spaces.Dict({k: observation_spaces[k] for k in self.observations})
         # The target space is -1..1
-        self.observation_space_target = gym.spaces.Tuple(tuple(map(observation_spaces_target.__getitem__, self.observations)))
+        self.observation_space_agent = observation_spaces_agent
         # The source space is what we approximate the values to be within in the environment
-        self.observation_space_env = gym.spaces.Tuple(tuple(map(observation_spaces_env.__getitem__, self.observations)))
+        self.observation_space_env = observation_spaces_env
 
     def seed(self, seed):
         self.rng = np.random.default_rng(seed)
@@ -112,16 +110,11 @@ class DCEnv(gym.Env):
         return state
 
     def step(self, action):
-        clipped_action = map(lambda x: self.clip_action(*x), zip(action, self.action_space))
-        rescaled_action = map(lambda x: self.scale_to(*x), zip(clipped_action, self.action_space, self.action_space_env))
-        action = dict(zip(self.actions, rescaled_action))
-        if "rack" in action:
-            rack_placement = action.get("rack")
-            start = rack_placement * self.flowsim.servers_per_rack
-            end = (rack_placement + 1) * self.flowsim.servers_per_rack
-            placement = start + np.argmin(self.servers.load[start:end])
-        elif "server" in action:
-            placement = action.get("server")
+        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ", action)
+        clipped_action = self.clip_action(action)
+        action = self.scale_to(clipped_action, self.action_space, self.action_space_env)
+        if "server" in action:
+            placement = action.get("server_placement")
         else:
             placement = np.argmin(self.servers.load[:self.n_place])
 
@@ -130,7 +123,7 @@ class DCEnv(gym.Env):
         self.servers.update(self.time, self.dt, placement, self.job[0], self.job[1], self.flowsim.server_temp_in)
 
         # Update CRAH fans
-        crah_temp = action.get("crah_out", self.crah_out_setpoint)
+        crah_temp = action.get("crah_temp_out", self.crah_out_setpoint)
         crah_flow = action.get("crah_flow", self.crah_flow_setpoint * self.crah.max_flow)
         self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.ambient_temp(self.time))
 
@@ -156,33 +149,38 @@ class DCEnv(gym.Env):
 
     def get_state(self):
         """
-        Return a tuple of rescaled observations based on selected observations in self.observations
+        Return a dict of rescaled observations based on selected observations in self.observations
         """
-        states = {
-            "load": self.servers.load,
-            "temp_out": self.flowsim.server_temp_out,
-            "job": 0 if self.job == (0, 0) else 1,
+        all_states = {
+            "server_load": self.servers.load,
+            "server_temp_out": self.flowsim.server_temp_out,
+            "job": np.array([0 if self.job == (0, 0) else 1]),
         }
-        state = tuple(map(lambda x: self.scale_to(*x), zip(
-            map(states.__getitem__, self.observations), 
-            self.observation_space_env, 
-            self.observation_space_target)))
+        selected_states = {k: all_states[k] for k in self.observations}
+        state = self.scale_to(selected_states, self.observation_space_agent, self.observation_space_env)
         return state
     
-    def scale_to(self, x, original_range, target_range):
+    def scale_to(self, x, source_space, target_space):
         """
         If supplied range is of type Box do a linear mapping from source to target
         """
-        if isinstance(original_range, gym.spaces.Box):
-            return (x - original_range.low) * (target_range.high - target_range.low) / (original_range.high - original_range.low) + target_range.low
-        else: # Can't handle rescaling other types
-            return x
+        scaled_x = {}
+        for k in x:
+            if isinstance(source_space, gym.spaces.Box):
+                scaled_x[k] = (x[k] - source_space.low) * (target_space.high - target_space.low) / (source_space.high - source_space.low) + target_space.low
+            else: # Can't handle rescaling other types
+                scaled_x[k] = x[k]
+        return scaled_x
 
-    def clip_action(self, a, allowed_range):
+    def clip_action(self, a):
         """
-        Clip action based on the allowed range, only do it for Box space
+        Clip action based on action space, only do it for Box space
         """
-        if isinstance(allowed_range, gym.spaces.Box):
-            return np.clip(a, allowed_range.low, allowed_range.high)
-        else: # Can't handle rescaling other types
-            return a
+        clipped_a = {}
+        for k in self.actions:
+            space = self.action_space[k]
+            if isinstance(space, gym.spaces.Box):
+                clipped_a[k] = np.clip(a[k], space.low, space.high)
+            else: # Can't handle rescaling other types
+                clipped_a[k] = a[k]
+        return clipped_a
