@@ -8,8 +8,8 @@ class DCEnv(gym.Env):
     def __init__(self, config={}):
         self.dt = config.get("dt", 1)
         self.energy_cost = config.get("energy_cost", 0.00001)
-        self.job_drop_cost = config.get("job_drop_cost", 50.0)
-        self.overheat_cost = config.get("overheat_cost", 0.1)
+        self.job_drop_cost = config.get("job_drop_cost", 100.0)
+        self.overheat_cost = config.get("overheat_cost", 1.0)
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
         self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
 
@@ -48,8 +48,8 @@ class DCEnv(gym.Env):
         action_spaces_agent = {
             "none": gym.spaces.Discrete(2), # If running with other algorithms
             "server_placement": gym.spaces.Discrete(self.flowsim.n_servers), 
-            "crah_temp_out": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
-            "crah_flow": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
+            "crah_temp_out": gym.spaces.Box(-1, 1, shape=(1,)),
+            "crah_flow": gym.spaces.Box(-1, 1, shape=(1,)),
         }
         action_spaces_env = {
             "none": gym.spaces.Discrete(2),
@@ -63,22 +63,25 @@ class DCEnv(gym.Env):
 
         # All individual observation spaces
         observation_spaces = {
-            "server_load": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
-            "server_temp_out": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
-            "job": gym.spaces.Box(-100.0, 100.0, shape=(1,)),
+            "server_load": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
+            "server_temp_out": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
+            "outdoor_temp": gym.spaces.Box(-100, 100, shape=(1,)),
+            "job": gym.spaces.Box(-100, 100, shape=(1,)),
         }
         # Put it together based on chosen observations
         # The real space is just made bigger than the target to fit anything that falls outside, only needed for ray to be happy
         self.observation_space = gym.spaces.Dict({k: observation_spaces[k] for k in self.observations})
         self.observation_spaces_agent = {
-            "server_load": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
-            "server_temp_out": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
-            "job": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
+            "server_load": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
+            "server_temp_out": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
+            "outdoor_temp": gym.spaces.Box(-1, 1, shape=(1,)),
+            "job": gym.spaces.Box(-1, 1, shape=(1,)),
         }
         self.observation_spaces_env = {
             "server_load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
             #"temp_out": gym.spaces.Box(-10, self.servers.max_temp_cpu+10, shape=(self.n_servers,)),
             "server_temp_out": gym.spaces.Box(15, 85, shape=(self.n_servers,)),
+            "outdoor_temp": gym.spaces.Box(0, 30, shape=(1,)),
             "job": gym.spaces.Box(0, 1, shape=(1,)),
             #"job": gym.spaces.Box(np.array(self.load_generator.min_values()), np.array(self.load_generator.max_values())),
         }
@@ -149,6 +152,7 @@ class DCEnv(gym.Env):
         all_states = {
             "server_load": self.servers.load,
             "server_temp_out": self.flowsim.server_temp_out,
+            "outdoor_temp": self.ambient_temp(self.time),
             "job": np.array([0 if self.job == (0, 0) else 1]),
         }
         selected_states = {k: all_states[k] for k in self.observations}
