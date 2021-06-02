@@ -29,8 +29,9 @@ class ServerConvNetwork(TFModelV2):
             else:
                 other_inputs.append(inp)
 
+        all_inputs = other_inputs + server_inputs
 
-        all_conc = tf.keras.layers.Concatenate()(server_inputs + other_inputs)
+        all_conc = tf.keras.layers.Concatenate()(all_inputs)
 
         # Pre net, goes both to conv and crah 
         pre = all_conc

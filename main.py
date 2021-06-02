@@ -11,7 +11,6 @@ from loads.workloads import RandomArrival
 from util.loggingcallbacks import LoggingCallbacks
 from dc.dc import DCEnv
 from models.serverconv import ServerConvNetwork
-from models.emptynet import EmptyNetwork
 
 parser = argparse.ArgumentParser()
 
@@ -61,7 +60,6 @@ tune.register_env("DCEnv", DCEnv)
 
 # Register model with ray
 ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
-ModelCatalog.register_custom_model("emptynet", EmptyNetwork)
 
 analysis = tune.run(
     "PPO", 
@@ -85,7 +83,7 @@ analysis = tune.run(
 
         # Model
         "model": {
-            "custom_model": "emptynet" if args.actions[0] == "none" else "serverconv",
+            "custom_model": "serverconv",
             "custom_model_config": {
                 "n_servers": n_servers,
                 "activation": "tanh", #tune.choice(["relu", "tanh"]),
