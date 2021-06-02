@@ -71,8 +71,8 @@ class ServerConvNetwork(TFModelV2):
     @override(ModelV2)
     def forward(self, input_dict, state, seq_lens):
         orig_obs = input_dict[SampleBatch.OBS]
-        logit_tuple, value = self.base_model(orig_obs)
-        self._value_out = value
+        logit_tuple, values = self.base_model(orig_obs)
+        self._value_out = tf.reshape(values, [-1])
         return logit_tuple, []
 
     @override(ModelV2)

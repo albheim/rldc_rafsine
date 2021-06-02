@@ -67,25 +67,21 @@ class DCEnv(gym.Env):
             "server_temp_out": gym.spaces.Box(-100.0, 100.0, shape=(self.n_servers,)),
             "job": gym.spaces.Box(-100.0, 100.0, shape=(1,)),
         }
-        observation_spaces_agent = {
+        # Put it together based on chosen observations
+        # The real space is just made bigger than the target to fit anything that falls outside, only needed for ray to be happy
+        self.observation_space = gym.spaces.Dict({k: observation_spaces[k] for k in self.observations})
+        self.observation_spaces_agent = {
             "server_load": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
             "server_temp_out": gym.spaces.Box(-1.0, 1.0, shape=(self.n_servers,)),
             "job": gym.spaces.Box(-1.0, 1.0, shape=(1,)),
         }
-        observation_spaces_env = {
+        self.observation_spaces_env = {
             "server_load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
             #"temp_out": gym.spaces.Box(-10, self.servers.max_temp_cpu+10, shape=(self.n_servers,)),
             "server_temp_out": gym.spaces.Box(15, 85, shape=(self.n_servers,)),
             "job": gym.spaces.Box(0, 1, shape=(1,)),
             #"job": gym.spaces.Box(np.array(self.load_generator.min_values()), np.array(self.load_generator.max_values())),
         }
-        # Put it together based on chosen observations
-        # The real space is just made bigger than the target to fit anything that falls outside, only needed for ray to be happy
-        self.observation_space = gym.spaces.Dict({k: observation_spaces[k] for k in self.observations})
-        # The target space is -1..1
-        self.observation_space_agent = observation_spaces_agent
-        # The source space is what we approximate the values to be within in the environment
-        self.observation_space_env = observation_spaces_env
 
     def seed(self, seed):
         self.rng = np.random.default_rng(seed)
@@ -110,7 +106,6 @@ class DCEnv(gym.Env):
         return state
 
     def step(self, action):
-        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ", action)
         clipped_action = self.clip_action(action)
         action = self.scale_to(clipped_action, self.action_space, self.action_space_env)
         if "server" in action:
@@ -157,7 +152,7 @@ class DCEnv(gym.Env):
             "job": np.array([0 if self.job == (0, 0) else 1]),
         }
         selected_states = {k: all_states[k] for k in self.observations}
-        state = self.scale_to(selected_states, self.observation_space_agent, self.observation_space_env)
+        state = self.scale_to(selected_states, self.observation_spaces_env, self.observation_spaces_agent)
         return state
     
     def scale_to(self, x, source_space, target_space):
@@ -166,8 +161,8 @@ class DCEnv(gym.Env):
         """
         scaled_x = {}
         for k in x:
-            if isinstance(source_space, gym.spaces.Box):
-                scaled_x[k] = (x[k] - source_space.low) * (target_space.high - target_space.low) / (source_space.high - source_space.low) + target_space.low
+            if isinstance(source_space[k], gym.spaces.Box):
+                scaled_x[k] = (x[k] - source_space[k].low) * (target_space[k].high - target_space[k].low) / (source_space[k].high - source_space[k].low) + target_space[k].low
             else: # Can't handle rescaling other types
                 scaled_x[k] = x[k]
         return scaled_x
