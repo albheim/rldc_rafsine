@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 # Env settings
 parser.add_argument("--rafsine", action="store_true", help="If flag is set the rafsine backend will be used, otherwise the simple simulation is used.")
 parser.add_argument("--actions", nargs="+", default=["server_placement", "crah_temp_out", "crah_flow"])
-parser.add_argument("--observations", nargs="+", default=["server_temp_out", "server_load", "job"])
+parser.add_argument("--observations", nargs="+", default=["server_temp_out", "server_load", "outdoor_temp", "job"])
 parser.add_argument("--crah_out_setpoint", type=float, default=22)
 parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 
@@ -103,6 +103,7 @@ analysis = tune.run(
         "num_gpus_per_worker": 1 / args.n_envs if args.rafsine else 0, # Only give gpu to rafsine
         "num_cpus_per_worker": 1, # Does this make any difference?
         "seed": args.seed, 
+        #"seed": args.seed, 
 
         # For logging (does soft_horizon do more, not sure...)
         "callbacks": LoggingCallbacks,
