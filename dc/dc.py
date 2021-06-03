@@ -111,7 +111,7 @@ class DCEnv(gym.Env):
     def step(self, action):
         clipped_action = self.clip_action(action)
         action = self.scale_to(clipped_action, self.action_space, self.action_space_env)
-        if "server" in action:
+        if "server_placement" in action:
             placement = action.get("server_placement")
         else:
             placement = np.argmin(self.servers.load[:self.n_place])

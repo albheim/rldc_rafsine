@@ -53,7 +53,8 @@ class ServerConvNetwork(TFModelV2):
         placement_out = tf.keras.layers.Multiply()([conv_flattened, input_dict["job"]]) # Removes gradient if zero job was placed
         
         # Crah settings
-        crah_dense = other_conc # all_conc
+        crah_dense = other_conc 
+        #crah_dense = all_conc
         for i in range(n_crah_layers):
             crah_dense = tf.keras.layers.Dense(n_hidden, activation=activation, name=f"crah_dense{i}")(crah_dense)
         crah_temp_out = tf.keras.layers.Dense(2, name="crah_temp_out")(crah_dense)
@@ -66,7 +67,8 @@ class ServerConvNetwork(TFModelV2):
         action_out = tf.keras.layers.Concatenate(name="action_out")(action_outputs) if len(action_outputs) > 1 else action_outputs[0]
 
         # Value net
-        value_dense = other_conc # all_conc
+        value_dense = other_conc 
+        #value_dense = all_conc
         for i in range(n_value_layers):
             value_dense = tf.keras.layers.Dense(n_hidden, activation=activation, name=f"value_dense{i}")(value_dense)
         value_out = tf.keras.layers.Dense(1, name="value_out")(value_dense)
