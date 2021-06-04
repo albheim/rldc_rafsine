@@ -17,8 +17,6 @@ parser = argparse.ArgumentParser()
 
 # Env settings
 parser.add_argument("--rafsine", action="store_true", help="If flag is set the rafsine backend will be used, otherwise the simple simulation is used.")
-parser.add_argument("--actions", nargs="+", default=["server", "crah_out", "crah_flow"])
-parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "outdoor_temp", "job"])
 parser.add_argument("--crah_out_setpoint", type=float, default=22)
 parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 
@@ -28,6 +26,7 @@ parser.add_argument("--load_size", type=float, default=20)
 parser.add_argument("--job_p", type=float, default=0.5, help="Probability that a job arrives each time instance.")
 
 # Training settings
+parser.add_argument("--model", type=str, default="serverconv")
 parser.add_argument("--seed", type=int, default=37, help="Seed used for everything, should make the simulations completely reproducible.")
 parser.add_argument("--tag", type=str, default="default")
 parser.add_argument("--n_envs", type=int, default=1) # envs for each ppo agent
@@ -61,7 +60,7 @@ tune.register_env("DCEnv", DCEnv)
 
 # Register model with ray
 ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
-ModelCatalog.register_custom_model("emptynet", EmptyNetwork)
+ModelCatalog.register_custom_model("baseline", EmptyNetwork)
 
 analysis = tune.run(
     "PPO", 
@@ -77,15 +76,13 @@ analysis = tune.run(
             "n_crah": n_crah,
             "load_generator": load_generator_creator,
             "outdoor_temp": temp_generator_creator,
-            "actions": args.actions,
-            "observations": args.observations,
             "crah_out_setpoint": args.crah_out_setpoint,
             "crah_flow_setpoint": args.crah_flow_setpoint,
         },
 
         # Model
         "model": {
-            "custom_model": "emptynet" if args.actions[0] == "none" else "serverconv",
+            "custom_model": args.model,
             "custom_model_config": {
                 "n_servers": n_servers,
                 "activation": "tanh", #tune.choice(["relu", "tanh"]),
@@ -104,8 +101,8 @@ analysis = tune.run(
         "num_envs_per_worker": 1, # How many envs on each worker?
         "num_gpus_per_worker": 1 / args.n_envs if args.rafsine else 0, # Only give gpu to rafsine
         "num_cpus_per_worker": 1, # Does this make any difference?
-        "seed": tune.grid_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
-        #"seed": args.seed, 
+        #"seed": tune.grid_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+        "seed": args.seed, 
 
         # For logging (does soft_horizon do more, not sure...)
         "callbacks": LoggingCallbacks,

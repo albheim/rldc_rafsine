@@ -12,16 +12,20 @@ class ServerConvNetwork(TFModelV2):
     def __init__(self, obs_space, action_space, num_outputs, model_config, name, 
             n_servers, n_hidden=256, inject=False, activation='relu',
             n_conv_layers=1, n_conv_hidden=1, n_pre_layers=1, n_crah_layers=1, n_value_layers=2):
+        obs_space = obs_space.original_space if hasattr(obs_space, "original_space") else obs_space
         super(ServerConvNetwork, self).__init__(
             obs_space, action_space, num_outputs, model_config, name)
 
         
-        input_temp = tf.keras.layers.Input(shape=(n_servers,))
+        #fixed_input = tf.keras.layers.Input(tensor=tf.constant([1, 2, 3, 4]))
+
         input_load = tf.keras.layers.Input(shape=(n_servers,))
+        input_temp = tf.keras.layers.Input(shape=(n_servers,))
+        server_inputs = [input_load, input_temp]
+
         input_outdoor_temp = tf.keras.layers.Input(shape=(1,))
         input_job = tf.keras.layers.Input(shape=(1,))
         other_inputs = [input_outdoor_temp, input_job]
-        server_inputs = [input_temp, input_load]
 
         all_conc = tf.keras.layers.Concatenate()(other_inputs + server_inputs)
 

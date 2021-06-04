@@ -78,4 +78,4 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["cost/dropped"] = env.total_job_drop_cost
         episode.custom_metrics["cost/temp_cold_isle"] = env.total_overheat_cost
         
-        episode.custom_metrics["other/ambient_temp"] = env.ambient_temp(env.time)
+        episode.custom_metrics["other/outdoor_temp"] = env.outdoor_temp(env.time)
