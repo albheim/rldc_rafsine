@@ -37,8 +37,8 @@ class DCEnv(gym.Env):
         # Jobs
         self.load_generator = config["load_generator"]()
 
-        self.actions = config.get("actions", ["server", "crah_out", "crah_flow"])
-        self.observations = config.get("observations", ["temp_out", "load", "job"])
+        self.actions = ["none"] if config["baseline"] else ["server", "crah_out", "crah_flow"]
+        self.observations = ["temp_out", "load", "outdoor_temp", "job"]
 
         # Ambient temp
         self.outdoor_temp = config["outdoor_temp"]()

@@ -27,10 +27,10 @@ parser.add_argument("--job_p", type=float, default=0.5, help="Probability that a
 
 # Training settings
 parser.add_argument("--model", type=str, default="serverconv")
-parser.add_argument("--seed", type=int, default=37, help="Seed used for everything, should make the simulations completely reproducible.")
+parser.add_argument("--seed", type=int, default=-1, help="Seed used for everything, should make the simulations completely reproducible.")
 parser.add_argument("--tag", type=str, default="default")
 parser.add_argument("--n_envs", type=int, default=1) # envs for each ppo agent
-parser.add_argument("--stop_timesteps", type=int, default=500000)
+parser.add_argument("--timesteps", type=int, default=500000)
 #parser.add_argument("--resume", type=str, default="", help="String with path to run to resume.")
 parser.add_argument("--n_samples", type=int, default=1)
 parser.add_argument("--horizon", type=int, default=200)
@@ -62,6 +62,8 @@ tune.register_env("DCEnv", DCEnv)
 ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
 ModelCatalog.register_custom_model("baseline", EmptyNetwork)
 
+seed = args.seed if args.seed != -1 else tune.choice([i for i in range(100)])
+
 analysis = tune.run(
     "PPO", 
     config={
@@ -70,10 +72,11 @@ analysis = tune.run(
         "env_config": {
             "dt": dt,
             "rafsine_flow": args.rafsine,
-            "seed": args.seed,
+            "seed": seed,
             "n_servers": n_servers,
             "n_racks": n_racks,
             "n_crah": n_crah,
+            "baseline": args.model == "baseline",
             "load_generator": load_generator_creator,
             "outdoor_temp": temp_generator_creator,
             "crah_out_setpoint": args.crah_out_setpoint,
@@ -101,8 +104,7 @@ analysis = tune.run(
         "num_envs_per_worker": 1, # How many envs on each worker?
         "num_gpus_per_worker": 1 / args.n_envs if args.rafsine else 0, # Only give gpu to rafsine
         "num_cpus_per_worker": 1, # Does this make any difference?
-        #"seed": tune.grid_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
-        "seed": args.seed, 
+        "seed": seed,
 
         # For logging (does soft_horizon do more, not sure...)
         "callbacks": LoggingCallbacks,
@@ -124,7 +126,7 @@ analysis = tune.run(
         #"checkpoint_at_end": True,
     },
     stop={
-        "timesteps_total": args.stop_timesteps,
+        "timesteps_total": args.timesteps,
     }, 
 
     # Logging directories

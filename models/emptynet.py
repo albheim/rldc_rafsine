@@ -9,16 +9,20 @@ tf, tf2, _ = try_import_tf()
 
 class EmptyNetwork(TFModelV2):
     def __init__(self, obs_space, action_space, num_outputs, model_config, name, **kwargs):
+        obs_space = obs_space.original_space if hasattr(obs_space, "original_space") else obs_space
         super(EmptyNetwork, self).__init__(obs_space, action_space, num_outputs, model_config, name)
-        inp = tf.keras.Input(shape=obs_space.shape)
-        aoutp = tf.keras.layers.Dense(num_outputs)(inp)
-        voutp = tf.keras.layers.Dense(1)(inp)
-        self.base_model = tf.keras.Model(inputs=inp, outputs=[aoutp, voutp])
+
+        input_job = tf.keras.layers.Input(shape=(1,))
+
+        aoutp = tf.keras.layers.Dense(num_outputs)(input_job)
+        voutp = tf.keras.layers.Dense(1)(input_job)
+
+        self.base_model = tf.keras.Model(inputs=[input_job], outputs=[aoutp, voutp])
 
     @override(ModelV2)
     def forward(self, input_dict, state, seq_lens):
-        orig_obs = input_dict[SampleBatch.OBS]
-        logit_tuple, values = self.base_model(orig_obs)
+        obs = input_dict["obs"][3]
+        logit_tuple, values = self.base_model(obs)
         self._value_out = tf.reshape(values, [-1])
         return logit_tuple, []
 
