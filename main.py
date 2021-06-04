@@ -22,7 +22,7 @@ parser.add_argument("--observations", nargs="+", default=["temp_out", "load", "o
 parser.add_argument("--crah_out_setpoint", type=float, default=22)
 parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 
-parser.add_argument("--ambient", nargs=2, type=float, default=[16, 8], help="x[0] + x[1]*sin(t/day) ourdoors temperature")
+parser.add_argument("--outdoor_temp", nargs=2, type=float, default=[18, 5], help="x[0] + x[1]*sin(t/day) ourdoors temperature")
 parser.add_argument("--avg_load", type=float, default=200)
 parser.add_argument("--load_size", type=float, default=20)
 parser.add_argument("--job_p", type=float, default=0.5, help="Probability that a job arrives each time instance.")
@@ -48,9 +48,9 @@ duration = dt * args.avg_load * n_servers / (args.load_size * args.job_p)
 def load_generator_creator():
     return RandomArrival(load=args.load_size, duration=duration, p=args.job_p)
 
-# Ambient temp
+# Outdoor temp
 def temp_generator_creator():
-    return SinusTemperature(offset=args.ambient[0], amplitude=args.ambient[1])
+    return SinusTemperature(offset=args.outdoor_temp[0], amplitude=args.outdoor_temp[1])
 
 # Init ray with all resources
 # needs $ ray start --head --num-cpus=20 --num-gpus=1
@@ -76,7 +76,7 @@ analysis = tune.run(
             "n_racks": n_racks,
             "n_crah": n_crah,
             "load_generator": load_generator_creator,
-            "ambient_temp": temp_generator_creator,
+            "outdoor_temp": temp_generator_creator,
             "actions": args.actions,
             "observations": args.observations,
             "crah_out_setpoint": args.crah_out_setpoint,
@@ -104,7 +104,8 @@ analysis = tune.run(
         "num_envs_per_worker": 1, # How many envs on each worker?
         "num_gpus_per_worker": 1 / args.n_envs if args.rafsine else 0, # Only give gpu to rafsine
         "num_cpus_per_worker": 1, # Does this make any difference?
-        "seed": args.seed, 
+        "seed": tune.grid_search([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+        #"seed": args.seed, 
 
         # For logging (does soft_horizon do more, not sure...)
         "callbacks": LoggingCallbacks,

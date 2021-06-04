@@ -16,16 +16,16 @@ class CRAH:
 
         self.compressor_factor = 1.0 # How efficient is the compressor? Costs this much energy per unit of removed heat energy.
 
-    def reset(self, ambient_temp):
+    def reset(self, outdoor_temp):
         self.flow = self.min_flow * np.ones(self.n_crah)
         self.temp_out = 22 * np.ones(self.n_crah)
 
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
 
         # If Tamb < Tout compressor is off
-        self.compressor_power = np.sum((ambient_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (ambient_temp - self.temp_out))
+        self.compressor_power = np.sum((outdoor_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (outdoor_temp - self.temp_out))
 
-    def update(self, temp_out, flow, temp_in, ambient_temp):
+    def update(self, temp_out, flow, temp_in, outdoor_temp):
         # Maybe allow individual control?
         self.flow = flow * np.ones(self.n_crah)
         self.temp_out = temp_out * np.ones(self.n_crah)
@@ -33,4 +33,5 @@ class CRAH:
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
 
         # If Tamb < Tout compressor is off
-        self.compressor_power = self.compressor_factor * np.sum((ambient_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (temp_in - self.temp_out))
+        # Assumes Tin > Tout which should always hold for stationary conditions but maybe could be broken if Tout changes too much too quickly.
+        self.compressor_power = self.compressor_factor * np.sum((outdoor_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (temp_in - self.temp_out))

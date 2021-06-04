@@ -41,7 +41,7 @@ class DCEnv(gym.Env):
         self.observations = config.get("observations", ["temp_out", "load", "job"])
 
         # Ambient temp
-        self.ambient_temp = config["ambient_temp"]()
+        self.outdoor_temp = config["outdoor_temp"]()
 
         # Gym environment stuff
         # Generate all individual action spaces
@@ -99,8 +99,8 @@ class DCEnv(gym.Env):
     def reset(self):
         self.time = 0
 
-        self.servers.reset(self.ambient_temp(self.time))
-        self.crah.reset(self.ambient_temp(self.time))
+        self.servers.reset(self.outdoor_temp(self.time))
+        self.crah.reset(self.outdoor_temp(self.time))
 
         self.flowsim.reset(self.servers, self.crah)
 
@@ -135,7 +135,7 @@ class DCEnv(gym.Env):
         # Update CRAH fans
         crah_temp = action.get("crah_out", self.crah_out_setpoint)
         crah_flow = action.get("crah_flow", self.crah_flow_setpoint * self.crah.max_flow)
-        self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.ambient_temp(self.time))
+        self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.outdoor_temp(self.time))
 
         # Run simulation based on current boundary condition
         self.flowsim.step(self.servers, self.crah)
@@ -164,7 +164,7 @@ class DCEnv(gym.Env):
         states = {
             "load": self.servers.load,
             "temp_out": self.flowsim.server_temp_out,
-            "outdoor_temp": self.ambient_temp(self.time),
+            "outdoor_temp": self.outdoor_temp(self.time),
             "job": 0 if self.job == (0, 0) else 1,
         }
         state = tuple(map(lambda x: self.scale_to(*x), zip(

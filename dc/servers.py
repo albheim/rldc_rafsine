@@ -21,9 +21,9 @@ class Servers:
 
         self.max_fan_power = 25.2 * 2 
 
-    def reset(self, ambient_temp):
+    def reset(self, outdoor_temp):
         self.delta_t = np.zeros(self.n_servers)
-        self.temp_cpu = ambient_temp * np.ones(self.n_servers)
+        self.temp_cpu = outdoor_temp * np.ones(self.n_servers)
         self.flow = self.min_flow * np.ones(self.n_servers)
         self.load = self.idle_load * np.ones(self.n_servers)
 
