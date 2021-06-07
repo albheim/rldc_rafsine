@@ -23,13 +23,11 @@ class DCEnv(gym.Env):
         self.n_servers = self.flowsim.n_servers
         self.n_crah = self.flowsim.n_crah
 
-        self.n_place = config.get("n_place", self.n_servers)
-
         nu = 1.568e-5 # Kinematic viscosity of air (m^2/s)
         k = 2.624e-2 # Thermal conductivity (W/m K)
         Pr = 0.707 # Prandtl number of air
         air_vol_heatcap = Pr * k / nu 
-        R = config.get("kR", 3) / air_vol_heatcap
+        R = 3 / air_vol_heatcap
 
         self.servers = Servers(self.n_servers, air_vol_heatcap, R)
         self.crah = CRAH(self.n_crah, air_vol_heatcap)
@@ -49,15 +47,15 @@ class DCEnv(gym.Env):
             "none": gym.spaces.Discrete(2), # If running with other algorithms
             "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
             "server": gym.spaces.Discrete(self.flowsim.n_servers), 
-            "crah_out": gym.spaces.Box(-1, 1, shape=(1,)),
-            "crah_flow": gym.spaces.Box(-1, 1, shape=(1,)),
+            "crah_out": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
+            "crah_flow": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
         }
         action_spaces_env = {
             "none": gym.spaces.Discrete(2),
             "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
             "server": gym.spaces.Discrete(self.flowsim.n_servers), 
-            "crah_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(1,)),
-            "crah_flow": gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(1,)),
+            "crah_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(self.n_crah,)),
+            "crah_flow": gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(self.n_crah,)),
         }
         # Put it together based on chosen actions
         self.action_space = gym.spaces.Tuple(tuple(map(action_spaces_agent.__getitem__, self.actions)))
@@ -126,7 +124,7 @@ class DCEnv(gym.Env):
         elif "server" in action:
             placement = action.get("server")
         else:
-            placement = np.argmin(self.servers.load[:self.n_place])
+            placement = np.argmin(self.servers.load)
 
         self.time += self.dt
 

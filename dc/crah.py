@@ -26,7 +26,7 @@ class CRAH:
         self.compressor_power = np.sum((outdoor_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (outdoor_temp - self.temp_out))
 
     def update(self, temp_out, flow, temp_in, outdoor_temp):
-        # Maybe allow individual control?
+        # Allows for flow and temp_out to be either numbers or vectors for individual vs combined control
         self.flow = flow * np.ones(self.n_crah)
         self.temp_out = temp_out * np.ones(self.n_crah)
 

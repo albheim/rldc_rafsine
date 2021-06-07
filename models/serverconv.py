@@ -10,7 +10,7 @@ class ServerConvNetwork(TFModelV2):
     # https://docs.ray.io/en/master/rllib-models.html#more-examples-for-building-custom-models
 
     def __init__(self, obs_space, action_space, num_outputs, model_config, name, 
-            n_servers, n_hidden=256, inject=False, activation='relu',
+            n_servers=360, n_crah=4, n_hidden=256, inject=False, activation='relu',
             n_conv_layers=1, n_conv_hidden=1, n_pre_layers=1, n_crah_layers=1, n_value_layers=2):
         obs_space = obs_space.original_space if hasattr(obs_space, "original_space") else obs_space
         super(ServerConvNetwork, self).__init__(
@@ -55,7 +55,7 @@ class ServerConvNetwork(TFModelV2):
         crah_dense = crah_input # all_conc
         for i in range(n_crah_layers):
             crah_dense = tf.keras.layers.Dense(n_hidden, activation=activation, name=f"crah_dense{i}")(crah_dense)
-        crah_dense_out = tf.keras.layers.Dense(4, name="crah_out")(crah_dense)
+        crah_dense_out = tf.keras.layers.Dense(4 * n_crah, name="crah_out")(crah_dense)
 
         # Full action distribution information
         action_out = tf.keras.layers.Concatenate(name="action_out")([placement_out, crah_dense_out])
