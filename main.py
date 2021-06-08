@@ -132,7 +132,7 @@ analysis = tune.run(
     }, 
 
     # Logging directories
-    name=datetime.now().strftime("%y%m%d%H%M%S_") + args.tag,
+    name=datetime.now().strftime("%y%m%d_%H%M%S_") + args.tag,
     local_dir=os.path.join("results", "DCEnv", "RAFSINE" if args.rafsine else "SIMPLE", "PPO", args.model),
     trial_name_creator=lambda trial: "trial",
 
