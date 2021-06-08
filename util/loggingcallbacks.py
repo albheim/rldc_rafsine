@@ -47,6 +47,8 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["srv/server_total_flow"] = total_server_flow
         episode.custom_metrics["srv/overheated_inlets"] = env.servers.overheated_inlets
         episode.custom_metrics["srv/avg_temp_in"] = np.dot(env.flowsim.server_temp_in, env.servers.flow) / total_server_flow
+        episode.custom_metrics["srv/min_temp_in"] = np.min(env.flowsim.server_temp_in)
+        episode.custom_metrics["srv/max_temp_in"] = np.max(env.flowsim.server_temp_in)
         episode.custom_metrics["srv/avg_temp_out"] = np.dot(env.flowsim.server_temp_out, env.servers.flow) / total_server_flow
         episode.custom_metrics["srv/avg_temp_cpu"] = np.mean(env.servers.temp_cpu)
         episode.custom_metrics["srv/load_variance"] = np.var(env.servers.load)
