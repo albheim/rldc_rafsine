@@ -11,6 +11,7 @@ from loads.workloads import RandomArrival
 from util.loggingcallbacks import LoggingCallbacks
 from dc.dc import DCEnv
 from models.serverconv import ServerConvNetwork
+from models.serverconv2d import ServerConv2DNetwork
 from models.emptynet import EmptyNetwork
 
 parser = argparse.ArgumentParser()
@@ -60,6 +61,7 @@ tune.register_env("DCEnv", DCEnv)
 
 # Register model with ray
 ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
+ModelCatalog.register_custom_model("serverconv2d", ServerConv2DNetwork)
 ModelCatalog.register_custom_model("baseline", EmptyNetwork)
 
 seed = args.seed if args.seed != -1 else tune.choice([i for i in range(100)])
@@ -130,8 +132,8 @@ analysis = tune.run(
     }, 
 
     # Logging directories
-    name=args.tag + datetime.now().strftime("_%Y-%m-%d_%H-%M-%S"),
-    local_dir=os.path.join("results", "DCEnv", "RAFSINE" if args.rafsine else "SIMPLE", "PPO"),
+    name=datetime.now().strftime("%y%m%d%H%M%S_") + args.tag,
+    local_dir=os.path.join("results", "DCEnv", "RAFSINE" if args.rafsine else "SIMPLE", "PPO", args.model),
     trial_name_creator=lambda trial: "trial",
 
     # Tuning
