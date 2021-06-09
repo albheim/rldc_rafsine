@@ -25,7 +25,7 @@ class SimpleFlow:
         recirculation = max(0, 1 - crah_flow_total / server_flow_total) 
         bypass = max(0, 1 - server_flow_total / crah_flow_total)
 
-        prev_crah_temp_out = crah.temp_out[0] # Simple model has same temp out
+        prev_crah_temp_out = np.dot(crah.flow, crah.temp_out) / crah_flow_total # Simple assumes air is mixed
 
         # All updated based on previous values
         self.server_temp_out = self.server_temp_in + servers.delta_t

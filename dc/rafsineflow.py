@@ -44,7 +44,7 @@ class RafsineFlow:
     
     def step(self, servers, crah):
         self.sim.set_boundary_conditions(self.server_names, servers.delta_t, servers.flow)
-        self.sim.set_boundary_conditions(self.crah_names, crah.temp_out, crah.flow / self.n_crah * np.ones(self.n_crah))
+        self.sim.set_boundary_conditions(self.crah_names, crah.temp_out, crah.flow)
         self.target_time += self.dt
         duration = self.target_time - (self.sim.get_time() - self.start_time).total_seconds()
         self.sim.run(duration) 
