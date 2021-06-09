@@ -64,6 +64,7 @@ ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
 ModelCatalog.register_custom_model("serverconv2d", ServerConv2DNetwork)
 ModelCatalog.register_custom_model("baseline", EmptyNetwork)
 
+# Have grid search here?
 seed = args.seed if args.seed != -1 else tune.choice([i for i in range(100)])
 
 analysis = tune.run(
@@ -94,6 +95,8 @@ analysis = tune.run(
                 "n_hidden": 64, #tune.choice([32, 128, 512]),
                 "n_pre_layers": 0, #tune.choice([0, 1, 3]), 
                 "inject": False, #tune.choice([True, False]), # If true, pre is injected into server conv
+                "rack_inject": False, #tune.choice([True, False]), # If true, pre is injected into server conv
+                "filter_size": 5,
                 "n_conv_layers": 1, #tune.choice([0, 1, 3]),
                 "n_conv_hidden": 3, #tune.choice([1, 3]),
                 "n_crah_layers": 1, #tune.choice([0, 1, 3]),
