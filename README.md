@@ -1,6 +1,6 @@
 # DC-sim
 
-This is a toolbox for simulating the heat loop in a small datacenter. It has two backends, first a very simple one described [here](link_paper) and then 
+This is a toolbox for simulating the heat loop in a small datacenter. It has two backends, first a very simple one described [here]() and then 
 a more complex CFD based one described [here]()
 
 ## Installation
@@ -27,10 +27,11 @@ python3 main.py
 ```
 where there are some optional parameters available among which we have
 ```
-  --rafsine # Use rafsine instead of simple simulation, needs additional git repo
+  --help # Show all available commands
+  --rafsine # Use rafsine instead of simple simulation, needs additional git repo with rafsine code
   --n_samples NS # How many samples the hyperparameter search should run over
   --tag SOME_NAME # Name of the run
-  --stop_timesteps NT # How many seconds (in simulation) should each sample run
+  --timesteps NT # How many seconds (in simulation) should each sample run
 ```
 
 ## Analyse
