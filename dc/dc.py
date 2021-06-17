@@ -8,7 +8,7 @@ class DCEnv(gym.Env):
     def __init__(self, config={}):
         self.dt = config.get("dt", 1)
         self.energy_cost = config.get("energy_cost", 0.00001)
-        self.job_drop_cost = config.get("job_drop_cost", 100.0)
+        self.job_misplace_cost = config.get("job_misplace_cost", 100.0)
         self.overheat_cost = config.get("overheat_cost", 1.0)
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
         self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
@@ -37,6 +37,8 @@ class DCEnv(gym.Env):
 
         self.actions = ["none"] if config["baseline"] else ["server", "crah_out", "crah_flow"]
         self.observations = ["temp_out", "load", "outdoor_temp", "job"]
+
+        self.server_placement_indices = config.get("place_load_indices", range(0, self.n_servers))
 
         # Ambient temp
         self.outdoor_temp = config["outdoor_temp"]()
@@ -104,7 +106,7 @@ class DCEnv(gym.Env):
 
         total_energy = (self.servers.fan_power + self.crah.fan_power + self.crah.compressor_power) * self.dt
         self.total_energy_cost = self.energy_cost * total_energy 
-        self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
+        self.total_job_misplace_cost = self.job_misplace_cost * self.servers.misplaced_jobs
         self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
 
         self.job = self.load_generator(self.time)
@@ -124,7 +126,8 @@ class DCEnv(gym.Env):
         elif "server" in action:
             placement = action.get("server")
         else:
-            placement = np.argmin(self.servers.load)
+            placement = self.server_placement_indices[np.argmin(self.servers.load[self.server_placement_indices])]
+            #placement = self.server_placement_indices[np.argmin(self.flowsim.server_temp_out[self.server_placement_indices])]
 
         self.time += self.dt
 
@@ -143,13 +146,13 @@ class DCEnv(gym.Env):
 
         total_energy = (self.servers.fan_power + self.crah.fan_power + self.crah.compressor_power) * self.dt
         self.total_energy_cost = self.energy_cost * total_energy 
-        self.total_job_drop_cost = self.job_drop_cost * self.servers.dropped_jobs
+        self.total_job_misplace_cost = self.job_misplace_cost * self.servers.misplaced_jobs
         # self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
         # For rafsine?
         # avg_temp_in = np.dot(self.flowsim.server_temp_in, self.servers.flow) / np.sum(self.servers.flow)
         # self.total_overheat_cost = 10 * max(0, avg_temp_in - 27)
         self.total_overheat_cost = self.overheat_cost * np.mean(np.maximum(0, self.flowsim.server_temp_in - 27))
-        total_cost = self.total_energy_cost + self.total_job_drop_cost + self.total_overheat_cost
+        total_cost = self.total_energy_cost + self.total_job_misplace_cost + self.total_overheat_cost
         reward = -total_cost
 
         state = self.get_state()

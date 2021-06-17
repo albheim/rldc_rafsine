@@ -64,9 +64,8 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["job/load"] = env.job[0]
         episode.custom_metrics["job/duration"] = env.job[1]
 
-        # Should be 0 with the drop instead of delay?
         episode.custom_metrics["job/running"] = len(env.servers.running_jobs)
-        episode.custom_metrics["job/dropped"] = env.servers.dropped_jobs
+        episode.custom_metrics["job/misplaced"] = env.servers.misplaced_jobs
 
         episode.custom_metrics["power/server_fan"] = env.servers.fan_power
         episode.custom_metrics["power/crah_fan"] = env.crah.fan_power
@@ -77,7 +76,7 @@ class LoggingCallbacks(DefaultCallbacks):
         episode.custom_metrics["power/PUE"] = (cooling_power + it_power) / it_power
 
         episode.custom_metrics["cost/energy"] = env.total_energy_cost
-        episode.custom_metrics["cost/dropped"] = env.total_job_drop_cost
+        episode.custom_metrics["cost/misplaced"] = env.total_job_misplace_cost
         episode.custom_metrics["cost/temp_cold_isle"] = env.total_overheat_cost
         
         episode.custom_metrics["other/outdoor_temp"] = env.outdoor_temp(env.time)

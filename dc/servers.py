@@ -30,7 +30,7 @@ class Servers:
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
 
         self.running_jobs = []
-        self.dropped_jobs = 0
+        self.misplaced_jobs = 0
         self.overheated_inlets = 0
 
     def update(self, time, dt, placement, load, duration, temp_in):
@@ -47,14 +47,13 @@ class Servers:
         
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
 
-        self.dropped_jobs = 0
-        if load == 0:
-            pass # No job
-        elif self.load[placement] + load <= self.max_load:
+        self.misplaced_jobs = 0
+        if load != 0:
+            if self.load[placement] + load > self.max_load: # If invalid placement, punish and place on lowest load
+                self.misplaced_jobs = 1
+                placement = np.argmin(self.load)
             self.load[placement] += load
             heapq.heappush(self.running_jobs, (time + duration, load, placement))
-        else:
-            self.dropped_jobs = 1
         while len(self.running_jobs) > 0 and self.running_jobs[0][0] <= time:
             _, load, placement = heapq.heappop(self.running_jobs)
             self.load[placement] -= load
