@@ -23,7 +23,6 @@ parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 
 parser.add_argument("--outdoor_temp", nargs=2, type=float, default=[18, 5], help="x[0] + x[1]*sin(t/day) ourdoors temperature")
 parser.add_argument("--avg_load", type=float, default=200)
-parser.add_argument("--load_size", type=float, default=20)
 parser.add_argument("--job_p", type=float, default=0.5, help="Probability that a job arrives each time instance.")
 
 # Training settings
@@ -35,22 +34,11 @@ parser.add_argument("--timesteps", type=int, default=500000)
 #parser.add_argument("--resume", type=str, default="", help="String with path to run to resume.")
 parser.add_argument("--n_samples", type=int, default=1)
 parser.add_argument("--horizon", type=int, default=200)
+parser.add_argument("--output", type=str, default=None)
 
 args = parser.parse_args()
 
 n_servers = 360
-n_racks = 12
-n_crah = 4
-
-# Job load
-dt = 1
-duration = dt * args.avg_load * n_servers / (args.load_size * args.job_p)
-def load_generator_creator():
-    return RandomArrival(load=args.load_size, duration=duration, p=args.job_p)
-
-# Outdoor temp
-def temp_generator_creator():
-    return SinusTemperature(offset=args.outdoor_temp[0], amplitude=args.outdoor_temp[1])
 
 # Init ray with all resources
 # needs $ ray start --head --num-cpus=20 --num-gpus=1
@@ -77,13 +65,11 @@ analysis = tune.run(
             "rafsine_flow": args.rafsine,
             "seed": seed,
             "n_servers": n_servers,
-            "n_racks": n_racks,
-            "n_crah": n_crah,
             "baseline": args.model == "baseline",
-            "load_generator": load_generator_creator,
-            "outdoor_temp": temp_generator_creator,
+            "outdoor_temp": args.outdoor_temp,
             "crah_out_setpoint": args.crah_out_setpoint,
             "crah_flow_setpoint": args.crah_flow_setpoint,
+            "avg_load": args.avg_load,
         },
 
         # Model
@@ -91,16 +77,19 @@ analysis = tune.run(
             "custom_model": args.model,
             "custom_model_config": {
                 "n_servers": n_servers,
-                "activation": "tanh", #tune.choice(["relu", "tanh"]),
+                "activation": "elu", #tune.choice(["relu", "tanh", "elu"]),
                 "n_hidden": 64, #tune.choice([32, 128, 512]),
                 "n_pre_layers": 0, #tune.choice([0, 1, 3]), 
                 "inject": False, #tune.choice([True, False]), # If true, pre is injected into server conv
-                "rack_inject": False, #tune.choice([True, False]), # If true, pre is injected into server conv
+                "rack_inject": "True", #tune.choice([True, False]), # If true, pre is injected into server conv
+                "conv_filter_size": 11, #tune.choice([1, 5, 11]),
                 "filter_size": 5,
                 "n_conv_layers": 1, #tune.choice([0, 1, 3]),
                 "n_conv_hidden": 3, #tune.choice([1, 3]),
                 "n_crah_layers": 1, #tune.choice([0, 1, 3]),
                 "n_value_layers": 2, #tune.choice([0, 1]),
+                "crah_input": "other", #tune.choice(["all", "other"]),
+                "value_input": "all", #tune.choice(["all", "other"]),
             },
         },
 
@@ -116,6 +105,7 @@ analysis = tune.run(
         "soft_horizon": True,
         "no_done_at_end": True,
         "horizon": args.horizon, # Decides length of episodes, should for now be same as rollout_frament_length
+        "output": args.output,
 
         # Training
         "train_batch_size": args.horizon * args.n_envs, # Collects batch of data from different workes, does min/max/avg over it and trains on it
