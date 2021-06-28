@@ -3,6 +3,8 @@ import gym
 
 from dc.servers import Servers
 from dc.crah import CRAH
+from loads.workloads import RandomArrival
+from loads.temperatures import SinusTemperature
 
 class DCEnv(gym.Env):
     def __init__(self, config={}):
@@ -33,15 +35,22 @@ class DCEnv(gym.Env):
         self.crah = CRAH(self.n_crah, air_vol_heatcap)
 
         # Jobs
-        self.load_generator = config["load_generator"]()
+        if "load_generator" in config:
+            self.load_generator = config["load_generator"]()
+        else:
+            self.load_generator = RandomArrival(20, duration=self.dt * config.get("avg_load", 200) * self.n_servers / (20 * 0.5), p=0.5)
+
+        # Outdoor temp
+        outdoor_temp = config.get("outdoor_temp", [20, 2])
+        if callable(outdoor_temp):
+            self.outdoor_temp = outdoor_temp()
+        else:
+            self.outdoor_temp = SinusTemperature(offset=outdoor_temp[0], amplitude=outdoor_temp[1])
 
         self.actions = ["none"] if config["baseline"] else ["server", "crah_out", "crah_flow"]
         self.observations = ["temp_out", "load", "outdoor_temp", "job"]
 
         self.server_placement_indices = config.get("place_load_indices", range(0, self.n_servers))
-
-        # Ambient temp
-        self.outdoor_temp = config["outdoor_temp"]()
 
         # Gym environment stuff
         # Generate all individual action spaces
@@ -115,6 +124,9 @@ class DCEnv(gym.Env):
         return state
 
     def step(self, action):
+        """
+        Do `action` and step environment forward by `dt`.
+        """
         clipped_action = map(lambda x: self.clip_action(*x), zip(action, self.action_space))
         rescaled_action = map(lambda x: self.scale_to(*x), zip(clipped_action, self.action_space, self.action_space_env))
         action = dict(zip(self.actions, rescaled_action))
