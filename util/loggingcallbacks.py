@@ -31,7 +31,8 @@ class LoggingCallbacks(DefaultCallbacks):
     def on_episode_end(self, *, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        env_index: int, **kwargs):
-        env = base_env.get_unwrapped()[env_index]
+        env = base_env.get_unwrapped()[env_index].unwrapped
+        
         #print("Logging at env time {}".format(env.time))
 
         # Log server, this takes a lot of memory so turned off most of the time
