@@ -29,6 +29,8 @@ class RandomPolicy(Policy):
 class DefaultPolicy(Policy):
     def __init__(self, observation_space, action_space, config):
         Policy.__init__(self, observation_space, action_space, config)
+        self.crah_out = 0.0
+        self.crah_flow = 0.8
 
     def compute_actions(self,
                         obs_batch,
@@ -39,13 +41,21 @@ class DefaultPolicy(Policy):
                         episodes=None,
                         **kwargs):
         # return action batch, RNN states, extra values to include in batch
-        return [(np.argmin(), np.array([])) for obs in obs_batch], [], {}
+        print(obs_batch)
+        return [(np.argmin(obs_batch[0]), np.array([self.crah_out, self.crah_flow])) for obs in obs_batch], [], {}
 
     def learn_on_batch(self, samples):
         return {}  
 
     def get_weights(self):
-        return {}
+        return {"co": self.crah_out, "cf": self.crah_flow}
 
     def set_weights(self, weights):
         pass
+
+from ray.rllib.agents.trainer_template import build_trainer
+
+# <class 'ray.rllib.agents.trainer_template.MyCustomTrainer'>
+DefaultTrainer = build_trainer(
+    name="DefaultTrainer",
+    default_policy=DefaultPolicy)
