@@ -14,8 +14,9 @@ class DCEnv(gym.Env):
         self.overheat_cost = config.get("overheat_cost", 1.0)
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
         self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
+        self.log_individual_servers = config.get("log_full", False)
 
-        if config.get("rafsine_flow", True):
+        if config.get("rafsine_flow", False):
             from dc.rafsineflow import RafsineFlow
             self.flowsim = RafsineFlow(self.dt)
         else:
@@ -42,12 +43,12 @@ class DCEnv(gym.Env):
 
         # Outdoor temp
         outdoor_temp = config.get("outdoor_temp", [20, 2])
-        if callable(outdoor_temp):
+        if callable(outdoor_temp): # Callable registered with tune that creates temperature object
             self.outdoor_temp = outdoor_temp()
         else:
             self.outdoor_temp = SinusTemperature(offset=outdoor_temp[0], amplitude=outdoor_temp[1])
 
-        self.actions = ["none"] if config["baseline"] else ["server", "crah_out", "crah_flow"]
+        self.actions = ["none"] if config.get("baseline", False) else ["server", "crah_out", "crah_flow"]
         self.observations = ["temp_out", "load", "outdoor_temp", "job"]
 
         self.server_placement_indices = config.get("place_load_indices", range(0, self.n_servers))
@@ -104,6 +105,7 @@ class DCEnv(gym.Env):
     def seed(self, seed):
         self.rng = np.random.default_rng(seed)
         self.load_generator.seed(seed)
+        self.outdoor_temp.seed(seed)
         
     def reset(self):
         self.time = 0
