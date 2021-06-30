@@ -2,7 +2,7 @@ import numpy as np
 import sys
 import os
 
-RAFSINE_BASE = "/home/ubuntu/rafsine"
+RAFSINE_BASE = "/work/rafsine"
 sys.path.insert(0, RAFSINE_BASE)
 from python.simulation import Simulation
 
