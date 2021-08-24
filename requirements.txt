@@ -3,6 +3,7 @@ scipy
 matplotlib
 seaborn
 tensorflow
+tensorflow-probability
 ray
 ray[default]
 ray[rllib]
