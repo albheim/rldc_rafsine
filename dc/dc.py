@@ -15,6 +15,7 @@ class DCEnv(gym.Env):
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
         self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
         self.log_individual_servers = config.get("log_full", False)
+        self.n_bins = config.get("n_bins", 0)
 
         if config.get("rafsine_flow", False):
             from dc.rafsineflow import RafsineFlow
@@ -55,23 +56,31 @@ class DCEnv(gym.Env):
 
         # Gym environment stuff
         # Generate all individual action spaces
-        action_spaces_agent = {
-            "none": gym.spaces.Discrete(2), # If running with other algorithms
-            "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
-            "server": gym.spaces.Discrete(self.flowsim.n_servers), 
-            "crah_out": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
-            "crah_flow": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
-        }
-        action_spaces_env = {
-            "none": gym.spaces.Discrete(2),
-            "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
-            "server": gym.spaces.Discrete(self.flowsim.n_servers), 
-            "crah_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(self.n_crah,)),
-            "crah_flow": gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(self.n_crah,)),
-        }
-        # Put it together based on chosen actions
-        self.action_space = gym.spaces.Tuple(tuple(map(action_spaces_agent.__getitem__, self.actions)))
-        self.action_space_env = gym.spaces.Tuple(tuple(map(action_spaces_env.__getitem__, self.actions)))
+        if self.n_bins == 0:
+            action_spaces_agent = {
+                "none": gym.spaces.Discrete(2), # If running with other algorithms
+                "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
+                "server": gym.spaces.Discrete(self.flowsim.n_servers), 
+                "crah_out": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
+                "crah_flow": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
+            }
+            action_spaces_env = {
+                "none": gym.spaces.Discrete(2),
+                "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
+                "server": gym.spaces.Discrete(self.flowsim.n_servers), 
+                "crah_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(self.n_crah,)),
+                "crah_flow": gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(self.n_crah,)),
+            }
+            # Put it together based on chosen actions
+            self.action_space = gym.spaces.Tuple(tuple(map(action_spaces_agent.__getitem__, self.actions)))
+            self.action_space_env = gym.spaces.Tuple(tuple(map(action_spaces_env.__getitem__, self.actions)))
+        else:
+            self.action_space = gym.spaces.MultiDiscrete([self.flowsim.n_servers, self.n_bins, self.n_bins])
+            self.action_spaces_env = gym.spaces.Tuple((
+                gym.spaces.Discrete(self.flowsim.n_servers), 
+                gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(self.n_crah,)),
+                gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(self.n_crah,)),
+            ))
 
         # All individual observation spaces
         observation_spaces = {
@@ -103,7 +112,6 @@ class DCEnv(gym.Env):
         self.observation_space_env = gym.spaces.Tuple(tuple(map(observation_spaces_env.__getitem__, self.observations)))
 
     def seed(self, seed):
-        self.rng = np.random.default_rng(seed)
         self.load_generator.seed(seed)
         self.outdoor_temp.seed(seed)
         
@@ -192,9 +200,11 @@ class DCEnv(gym.Env):
         """
         If supplied range is of type Box do a linear mapping from source to target
         """
-        if isinstance(original_range, gym.spaces.Box):
+        if isinstance(original_range, gym.spaces.Box): # Both are box
             return (x - original_range.low) * (target_range.high - target_range.low) / (original_range.high - original_range.low) + target_range.low
-        else: # Can't handle rescaling other types
+        elif isinstance(target_range, gym.spaces.Box): # Target is box
+            return x / (self.n_bins - 1) * (target_range.high - target_range.low) + target_range.low
+        else: # Otherwise don't rescale
             return x
 
     def clip_action(self, a, allowed_range):

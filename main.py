@@ -1,4 +1,3 @@
-from dc.dc_discrete import DiscreteWrapper
 import os
 import argparse
 from datetime import datetime
@@ -8,10 +7,9 @@ import ray
 import ray.tune as tune
 from ray.rllib.models import ModelCatalog
 
-from loads.temperatures import SinusTemperature
-from loads.workloads import RandomArrival
 from util.loggingcallbacks import LoggingCallbacks
 from dc.dc import DCEnv
+from dc.dc_continuous import DCEnvContinuous
 from models.serverconv import ServerConvNetwork
 from models.serverconv2d import ServerConv2DNetwork
 from models.emptynet import EmptyNetwork
@@ -23,6 +21,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--rafsine", action="store_true", help="If flag is set the rafsine backend will be used, otherwise the simple simulation is used.")
 parser.add_argument("--crah_out_setpoint", type=float, default=22)
 parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
+parser.add_argument("--n_bins", type=int, default=0)
 
 parser.add_argument("--outdoor_temp", nargs=2, type=float, default=[18, 5], help="x[0] + x[1]*sin(t/day) ourdoors temperature")
 parser.add_argument("--avg_load", type=float, default=200)
@@ -52,7 +51,7 @@ ray.init(address="auto")
 
 # Register env with ray
 tune.register_env("DCEnv", DCEnv)
-tune.register_env("DCEnvDiscrete", lambda config: DiscreteWrapper(DCEnv(config)))
+tune.register_env("DCEnvContinuous", DCEnvContinuous)
 
 # Register model with ray
 ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
@@ -60,10 +59,10 @@ ModelCatalog.register_custom_model("serverconv2d", ServerConv2DNetwork)
 ModelCatalog.register_custom_model("baseline", EmptyNetwork)
 
 # Have grid search here?
-seed = args.seed if args.seed != -1 else tune.choice([i for i in range(100)])
+seed = 37 #args.seed if args.seed != -1 else tune.choice([i for i in range(100)])
 
 # Some common config
-config = {
+tune_config = {
     # Environment
     "env": "DCEnv",
     "env_config": {
@@ -75,12 +74,13 @@ config = {
         "crah_flow_setpoint": args.crah_flow_setpoint,
         "avg_load": args.avg_load,
         "log_full": args.log_full,
+        "n_bins": args.n_bins,
     },
 
     # Worker setup
     "num_workers": args.n_envs, # How many workers are spawned, ppo use this many envs and data is aggregated from all
-    "num_envs_per_worker": 1, # How many envs on each worker?
-    "num_gpus_per_worker": 1 / args.n_envs if args.rafsine else 0, # Only give gpu to rafsine
+    "num_envs_per_worker": 1, # How many envs on each worker? Can be used to vectorize, probably same as num_workers?
+    "num_gpus_per_worker": 1 if args.rafsine else 0, # Only give gpu to rafsine
     "num_cpus_per_worker": 1, # Does this make any difference?
     "seed": seed,
 
@@ -101,19 +101,22 @@ config = {
     #"checkpoint_at_end": True,
 }
 # Trainer specific configs
-trainer_config = trainer_config(args, config)
-config.update(trainer_config)
+trainer_config = trainer_config(args, tune_config)
+tune_config.update(trainer_config)
+
+# Update specific configs for temporary testing
+# tune_config["lr"] = tune.grid_search([0.0001, 0.05])
 
 analysis = tune.run(
     args.alg, 
-    config=config,
+    config=tune_config,
     stop={
         "timesteps_total": args.timesteps,
     }, 
 
     # Logging directories
     name=datetime.now().strftime("%y%m%d_%H%M%S_") + args.tag,
-    local_dir=os.path.join("results", "DCEnv", "RAFSINE" if args.rafsine else "SIMPLE", args.alg, args.model),
+    local_dir=os.path.join(os.path.expanduser("~"), "results", "DCEnv", "RAFSINE" if args.rafsine else "SIMPLE", args.alg, args.model),
     trial_name_creator=lambda trial: "trial",
 
     # Tuning
