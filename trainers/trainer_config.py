@@ -26,18 +26,17 @@ def trainer_config(args, config):
             },
 
             # Worker setup
-            "num_workers": tune.grid_search([1, 4, 8]), #args.n_envs, # How many workers are spawned, ppo use this many envs and data is aggregated from all
+            "num_workers": args.n_envs, # How many workers are spawned, ppo use this many envs and data is aggregated from all
 
             # Training
-            "train_batch_size": tune.grid_search([500, 1000, 4000, 10000]), # Collects batch of data from different workes, does min/max/avg over it and trains on it
+            "train_batch_size": 4000, #tune.choice([4000, 1000, 10000]), # Collects batch of data from different workes, does min/max/avg over it and trains on it
             "rollout_fragment_length": args.horizon, # How much data is colelcted by each worker before sending in data for training
 
             # Agent settings
-            "vf_clip_param": 1000.0, # Set this to be around the size of value function? Git issue about this not being good, just set high?
-
-        }
-    elif args.alg == "SAC":
-        return {
+            "vf_clip_param": 1000.0, #tune.choice([1.0, 10.0, 100.0, 1000.0]), # Set this to be around the size of value function? Git issue about this not being good, just set high?
+            "entropy_coeff": 0, #tune.choice([0, 1]),
+            "kl_target": 0.01, #tune.choice([0.01, 0.001, 0.1]),
+            "clip_param": 0.3, #tune.choice([0.3, 0.03, 3]),
 
         }
     elif args.alg == "baseline":

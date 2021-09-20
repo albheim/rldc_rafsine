@@ -16,6 +16,7 @@ class DCEnv(gym.Env):
         self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
         self.log_individual_servers = config.get("log_full", False)
         self.n_bins = config.get("n_bins", 0)
+        self.broken = config.get("broken", -1)
 
         if config.get("rafsine_flow", False):
             from dc.rafsineflow import RafsineFlow
@@ -158,6 +159,8 @@ class DCEnv(gym.Env):
         # Update CRAH fans
         crah_temp = action.get("crah_out", self.crah_out_setpoint)
         crah_flow = action.get("crah_flow", self.crah_flow_setpoint * self.crah.max_flow)
+        if self.broken != -1:
+            crah_flow[self.broken] = 0
         self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.outdoor_temp(self.time))
 
         # Run simulation based on current boundary condition

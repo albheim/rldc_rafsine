@@ -22,7 +22,7 @@ class CRAH:
 
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
 
-        # If Tamb < Tout compressor is off
+        # If Tamb < Tout compressor is off, else it extracts the energy flowing through by using an equal amount of energy
         self.compressor_power = np.sum((outdoor_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (outdoor_temp - self.temp_out))
 
     def update(self, temp_out, flow, temp_in, outdoor_temp):

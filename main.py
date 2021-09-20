@@ -9,7 +9,6 @@ from ray.rllib.models import ModelCatalog
 
 from util.loggingcallbacks import LoggingCallbacks
 from dc.dc import DCEnv
-from dc.dc_continuous import DCEnvContinuous
 from models.serverconv import ServerConvNetwork
 from models.serverconv2d import ServerConv2DNetwork
 from models.emptynet import EmptyNetwork
@@ -22,6 +21,7 @@ parser.add_argument("--rafsine", action="store_true", help="If flag is set the r
 parser.add_argument("--crah_out_setpoint", type=float, default=22)
 parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 parser.add_argument("--n_bins", type=int, default=0)
+parser.add_argument("--broken", type=int, default=-1)
 
 parser.add_argument("--outdoor_temp", nargs=2, type=float, default=[18, 5], help="x[0] + x[1]*sin(t/day) ourdoors temperature")
 parser.add_argument("--avg_load", type=float, default=200)
@@ -46,12 +46,11 @@ parser.add_argument("--log_full", action="store_true", help="Log all stats for s
 args = parser.parse_args()
 
 # Init ray with all resources
-# needs $ ray start --head --num-cpus=20 --num-gpus=1
+# needs $ ray start --head --num-cpus=32 --num-gpus=10
 ray.init(address="auto")
 
 # Register env with ray
 tune.register_env("DCEnv", DCEnv)
-tune.register_env("DCEnvContinuous", DCEnvContinuous)
 
 # Register model with ray
 ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
@@ -75,6 +74,7 @@ tune_config = {
         "avg_load": args.avg_load,
         "log_full": args.log_full,
         "n_bins": args.n_bins,
+        "broken": args.broken,
     },
 
     # Worker setup
@@ -124,6 +124,7 @@ analysis = tune.run(
     metric="episode_reward_mean",
     mode="max",
 
+    # checkpoint_freq=5000,
     checkpoint_at_end=True,
     verbose=1,
 )
