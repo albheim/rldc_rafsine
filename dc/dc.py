@@ -157,8 +157,8 @@ class DCEnv(gym.Env):
         self.servers.update(self.time, self.dt, placement, self.job[0], self.job[1], self.flowsim.server_temp_in)
 
         # Update CRAH fans
-        crah_temp = action.get("crah_out", self.crah_out_setpoint)
-        crah_flow = action.get("crah_flow", self.crah_flow_setpoint * self.crah.max_flow)
+        crah_temp = action.get("crah_out", self.crah_out_setpoint * np.ones(4))
+        crah_flow = action.get("crah_flow", self.crah_flow_setpoint * self.crah.max_flow * np.ones(4))
         if self.broken != -1:
             crah_flow[self.broken] = 0
         self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.outdoor_temp(self.time))
