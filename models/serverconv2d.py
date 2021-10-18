@@ -33,6 +33,7 @@ class ServerConv2DNetwork(TFModelV2):
 
         input_load = tf.keras.layers.Input(shape=(n_servers,))
         input_temp = tf.keras.layers.Input(shape=(n_servers,))
+        # add constant tensor for height of each server?
         server_inputs = [input_load, input_temp]
 
         input_outdoor_temp = tf.keras.layers.Input(shape=(1,))

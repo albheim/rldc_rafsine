@@ -124,7 +124,7 @@ analysis = tune.run(
     metric="episode_reward_mean",
     mode="max",
 
-    # checkpoint_freq=5000,
+    checkpoint_freq=500, # 200 horizon means checkpoint at every 100k?
     checkpoint_at_end=True,
     verbose=1,
 )
