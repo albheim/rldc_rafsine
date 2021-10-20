@@ -9,5 +9,8 @@ oldlogs/
 .vscode/
 
 img/
+fig/
 results/
 old_results/
+
+.ipynb_checkpoints/
