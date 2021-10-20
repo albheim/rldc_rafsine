@@ -38,47 +38,47 @@ class LoggingCallbacks(DefaultCallbacks):
         # Log server, this takes a lot of memory so turned off most of the time
         if env.log_individual_servers:
             for i in range(env.n_servers):
-                episode.custom_metrics[f"srv{i}/load"] = env.servers.load[i]
-                episode.custom_metrics[f"srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
-                episode.custom_metrics[f"srv{i}/flow"] = env.servers.flow[i]
-                episode.custom_metrics[f"srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
-                episode.custom_metrics[f"srv{i}/temp_out"] = env.flowsim.server_temp_out[i]
+                episode.custom_metrics[f"env{env_index}/srv{i}/load"] = env.servers.load[i]
+                episode.custom_metrics[f"env{env_index}/srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
+                episode.custom_metrics[f"env{env_index}/srv{i}/flow"] = env.servers.flow[i]
+                episode.custom_metrics[f"env{env_index}/srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
+                episode.custom_metrics[f"env{env_index}/srv{i}/temp_out"] = env.flowsim.server_temp_out[i]
 
-        episode.custom_metrics["srv/max_temp_cpu"] = env.servers.temp_cpu.max()
+        episode.custom_metrics[f"env{env_index}/srv/max_temp_cpu"] = env.servers.temp_cpu.max()
         total_server_flow = np.sum(env.servers.flow)
-        episode.custom_metrics["srv/server_total_flow"] = total_server_flow
-        episode.custom_metrics["srv/overheated_inlets"] = env.servers.overheated_inlets
-        episode.custom_metrics["srv/avg_temp_in"] = np.dot(env.flowsim.server_temp_in, env.servers.flow) / total_server_flow
-        episode.custom_metrics["srv/min_temp_in"] = np.min(env.flowsim.server_temp_in)
-        episode.custom_metrics["srv/max_temp_in"] = np.max(env.flowsim.server_temp_in)
-        episode.custom_metrics["srv/avg_temp_out"] = np.dot(env.flowsim.server_temp_out, env.servers.flow) / total_server_flow
-        episode.custom_metrics["srv/avg_temp_cpu"] = np.mean(env.servers.temp_cpu)
-        episode.custom_metrics["srv/load_variance"] = np.var(env.servers.load)
+        episode.custom_metrics[f"env{env_index}/srv/server_total_flow"] = total_server_flow
+        episode.custom_metrics[f"env{env_index}/srv/overheated_inlets"] = env.servers.overheated_inlets
+        episode.custom_metrics[f"env{env_index}/srv/avg_temp_in"] = np.dot(env.flowsim.server_temp_in, env.servers.flow) / total_server_flow
+        episode.custom_metrics[f"env{env_index}/srv/min_temp_in"] = np.min(env.flowsim.server_temp_in)
+        episode.custom_metrics[f"env{env_index}/srv/max_temp_in"] = np.max(env.flowsim.server_temp_in)
+        episode.custom_metrics[f"env{env_index}/srv/avg_temp_out"] = np.dot(env.flowsim.server_temp_out, env.servers.flow) / total_server_flow
+        episode.custom_metrics[f"env{env_index}/srv/avg_temp_cpu"] = np.mean(env.servers.temp_cpu)
+        episode.custom_metrics[f"env{env_index}/srv/load_variance"] = np.var(env.servers.load)
 
 
         for i in range(env.n_crah):
-            episode.custom_metrics[f"crah{i}/temp_in"] = env.flowsim.crah_temp_in[i]
-            episode.custom_metrics[f"crah{i}/temp_out"] = env.crah.temp_out[i]
-            episode.custom_metrics[f"crah{i}/flow"] = env.crah.flow[i]
+            episode.custom_metrics[f"env{env_index}/crah{i}/temp_in"] = env.flowsim.crah_temp_in[i]
+            episode.custom_metrics[f"env{env_index}/crah{i}/temp_out"] = env.crah.temp_out[i]
+            episode.custom_metrics[f"env{env_index}/crah{i}/flow"] = env.crah.flow[i]
 
-        episode.custom_metrics["crah/crah_total_flow"] = np.sum(env.crah.flow)
+        episode.custom_metrics[f"env{env_index}/crah/crah_total_flow"] = np.sum(env.crah.flow)
 
-        episode.custom_metrics["job/load"] = env.job[0]
-        episode.custom_metrics["job/duration"] = env.job[1]
+        episode.custom_metrics[f"env{env_index}/job/load"] = env.job[0]
+        episode.custom_metrics[f"env{env_index}/job/duration"] = env.job[1]
 
-        episode.custom_metrics["job/running"] = len(env.servers.running_jobs)
-        episode.custom_metrics["job/misplaced"] = env.servers.misplaced_jobs
+        episode.custom_metrics[f"env{env_index}/job/running"] = len(env.servers.running_jobs)
+        episode.custom_metrics[f"env{env_index}/job/misplaced"] = env.servers.misplaced_jobs
 
-        episode.custom_metrics["power/server_fan"] = env.servers.fan_power
-        episode.custom_metrics["power/crah_fan"] = env.crah.fan_power
-        episode.custom_metrics["power/compressor"] = env.crah.compressor_power
+        episode.custom_metrics[f"env{env_index}/power/server_fan"] = env.servers.fan_power
+        episode.custom_metrics[f"env{env_index}/power/crah_fan"] = env.crah.fan_power
+        episode.custom_metrics[f"env{env_index}/power/compressor"] = env.crah.compressor_power
         it_power = np.sum(env.servers.load) + np.sum(env.servers.fan_power)
         cooling_power = env.servers.fan_power + env.crah.fan_power + env.crah.compressor_power
-        episode.custom_metrics["power/total_server_load"] = it_power
-        episode.custom_metrics["power/PUE"] = (cooling_power + it_power) / it_power
+        episode.custom_metrics[f"env{env_index}/power/total_server_load"] = it_power
+        episode.custom_metrics[f"env{env_index}/power/PUE"] = (cooling_power + it_power) / it_power
 
-        episode.custom_metrics["cost/energy"] = env.total_energy_cost
-        episode.custom_metrics["cost/misplaced"] = env.total_job_misplace_cost
-        episode.custom_metrics["cost/temp_cold_isle"] = env.total_overheat_cost
+        episode.custom_metrics["env{env_index}/cost/energy"] = env.total_energy_cost
+        episode.custom_metrics["env{env_index}/cost/misplaced"] = env.total_job_misplace_cost
+        episode.custom_metrics["env{env_index}/cost/temp_cold_isle"] = env.total_overheat_cost
         
-        episode.custom_metrics["other/outdoor_temp"] = env.outdoor_temp(env.time)
+        episode.custom_metrics["env{env_index}/other/outdoor_temp"] = env.outdoor_temp(env.time)
