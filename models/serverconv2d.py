@@ -23,7 +23,6 @@ class ServerConv2DNetwork(TFModelV2):
         activation = kwargs.get("activation", 'relu')
         n_conv_layers = kwargs.get("n_conv_layers", 1)
         n_conv_hidden = kwargs.get("n_conv_hidden", 1)
-        n_pre_layers = kwargs.get("n_pre_layers", 1)
         n_crah_layers = kwargs.get("n_crah_layers", 1)
         n_value_layers = kwargs.get("n_value_layers", 2)
         conv_filter_size = kwargs.get("conv_filter_size", 1)

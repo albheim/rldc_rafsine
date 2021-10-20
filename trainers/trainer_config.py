@@ -11,9 +11,7 @@ def trainer_config(args, config):
                     "n_servers": n_servers,
                     "activation": "elu", #tune.choice(["relu", "tanh", "elu"]),
                     "n_hidden": 64, #tune.choice([32, 128, 512]),
-                    "n_pre_layers": 0, #tune.choice([0, 1, 3]), 
-                    "inject": False, #tune.choice([True, False]), # If true, pre is injected into server conv
-                    "rack_inject": "True", #tune.choice([True, False]), # If true, pre is injected into server conv
+                    "rack_inject": True, #tune.choice([True, False]), # If true, pre is injected into server conv
                     "conv_filter_size": 11, #tune.choice([1, 5, 11]),
                     "filter_size": 5,
                     "n_conv_layers": 1, #tune.choice([0, 1, 3]),
