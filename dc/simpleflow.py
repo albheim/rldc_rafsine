@@ -9,10 +9,10 @@ class SimpleFlow:
         self.n_crah = n_crah
         self.dt = dt
 
-    def reset(self, servers, crah):
-        self.server_temp_in = np.zeros(self.n_servers)
-        self.server_temp_out = np.zeros(self.n_servers)
-        self.crah_temp_in = np.zeros(self.n_crah)
+    def reset(self, servers, crah, temperature):
+        self.server_temp_in = np.ones(self.n_servers) * temperature
+        self.server_temp_out = np.ones(self.n_servers) * temperature
+        self.crah_temp_in = np.ones(self.n_crah) * temperature
 
     def step(self, servers, crah):
         # This is a step of dt and then the new values are read

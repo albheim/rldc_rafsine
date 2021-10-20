@@ -21,7 +21,7 @@ parser.add_argument("--rafsine", action="store_true", help="If flag is set the r
 parser.add_argument("--crah_out_setpoint", type=float, default=22)
 parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
 parser.add_argument("--n_bins", type=int, default=0)
-parser.add_argument("--broken", type=int, default=-1)
+parser.add_argument("--break_after", type=float, default=-1)
 
 parser.add_argument("--outdoor_temp", nargs=2, type=float, default=[18, 5], help="x[0] + x[1]*sin(t/day) ourdoors temperature")
 parser.add_argument("--avg_load", type=float, default=200)
@@ -74,7 +74,7 @@ tune_config = {
         "avg_load": args.avg_load,
         "log_full": args.log_full,
         "n_bins": args.n_bins,
-        "broken": args.broken,
+        "break_after": args.break_after,
     },
 
     # Worker setup
@@ -98,7 +98,6 @@ tune_config = {
     # Data settings
     #"observation_filter": "MeanStdFilter", # Test this
     #"normalize_actions": True,
-    #"checkpoint_at_end": True,
 }
 # Trainer specific configs
 trainer_config = trainer_config(args, tune_config)
@@ -106,7 +105,9 @@ tune_config.update(trainer_config)
 
 # Update specific configs for temporary testing
 # tune_config["lr"] = tune.grid_search([0.0001, 0.05])
-
+#tune_config["model"]["custom_model_config"]["rack_inject"] = tune.choice([True, False])
+#tune_config["model"]["custom_model_config"]["train_batch_size"] = tune.choice([200, 1000, 5000])
+#
 analysis = tune.run(
     args.alg, 
     config=tune_config,
@@ -124,7 +125,7 @@ analysis = tune.run(
     metric="episode_reward_mean",
     mode="max",
 
-    checkpoint_freq=500, # 200 horizon means checkpoint at every 100k?
+    checkpoint_freq=1000, # 200 horizon means checkpoint at every 200k?
     checkpoint_at_end=True,
     verbose=1,
 )
