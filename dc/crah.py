@@ -14,7 +14,7 @@ class CRAH:
         # Assume it is twice as effective
         self.max_fan_power = 2646 / 2
 
-        self.compressor_factor = 1.0 # How efficient is the compressor? Costs this much energy per unit of removed heat energy.
+        self.compressor_factor = 0.3 # How efficient is the compressor? Costs this much energy per unit of removed heat energy.
 
     def reset(self, outdoor_temp):
         self.flow = self.min_flow * np.ones(self.n_crah)
@@ -23,7 +23,7 @@ class CRAH:
         self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
 
         # If Tamb < Tout compressor is off, else it extracts the energy flowing through by using an equal amount of energy
-        self.compressor_power = np.sum((outdoor_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (outdoor_temp - self.temp_out))
+        self.compressor_power = self.compressor_factor * np.sum((outdoor_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (outdoor_temp - self.temp_out))
 
     def update(self, temp_out, flow, temp_in, outdoor_temp):
         # Allows for flow and temp_out to be either numbers or vectors for individual vs combined control
