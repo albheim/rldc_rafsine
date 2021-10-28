@@ -41,11 +41,11 @@ class LoggingCallbacks(DefaultCallbacks):
         # Log server, this takes a lot of memory so turned off most of the time
         if env.loglevel > 1:
             # Does this do what I want?
-            episode.hist_data[f"env{worker_index}/loads"] = [env.servers.load]
-            episode.hist_data[f"env{worker_index}/cpu_temps"] = [env.servers.temp_cpu]
-            episode.hist_data[f"env{worker_index}/flows"] = [env.servers.flow]
-            episode.hist_data[f"env{worker_index}/inlet_temps"] = [env.flowsim.server_temp_in]
-            episode.hist_data[f"env{worker_index}/outlet_temps"] = [env.flowsim.server_temp_out]
+            episode.hist_data[f"env{worker_index}/loads"] = env.servers.load.tolist()
+            episode.hist_data[f"env{worker_index}/cpu_temps"] = env.servers.temp_cpu.tolist()
+            episode.hist_data[f"env{worker_index}/flows"] = env.servers.flow.tolist()
+            episode.hist_data[f"env{worker_index}/inlet_temps"] = env.flowsim.server_temp_in.tolist()
+            episode.hist_data[f"env{worker_index}/outlet_temps"] = env.flowsim.server_temp_out.tolist()
 
             # for i in range(env.n_servers):
             #     episode.custom_metrics[f"env{worker_index}/srv{i}/load"] = env.servers.load[i]
