@@ -25,13 +25,10 @@ class CSVTemperature:
     
     def seed(self, seed, hour_offset=0):
         self.rng = np.random.default_rng(seed)
-        self.start_idx = hour_offset + 24 * self.rng.integers(low=0, high=len(self.data) // 24)
+        # self.start_idx = hour_offset + 24 * self.rng.integers(low=0, high=len(self.data) // 24)
+        start_idx = 33220 + hour_offset # Will generate data from summer with temp in 10-20 range
+        self.data = self.data[start_idx:start_idx+24*10]
     
     def __call__(self, t):
-        offset = int(t / 3600)
-        idx = self.start_idx + offset
-        idx %= len(self.data) # Wrap around in case of 
-        temp = self.data[idx]
-        if np.isnan(temp): # We have some NaN values, just find latest valid value in that case
-            temp = self.__call__(t - 3600)
+        temp = np.interp(t/3600, range(len(self.data)), self.data)
         return temp
