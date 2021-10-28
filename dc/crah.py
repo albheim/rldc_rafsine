@@ -12,7 +12,7 @@ class CRAH:
         # servers are 50.4 / 0.04 watt/flow
         # crah should probably be similar (maybe cheaper) so starting we set it to 2.5 * 50.4 / 0.04 = 2646
         # Assume it is twice as effective
-        self.max_fan_power = 2646 / 2
+        self.max_fan_power = 750 #2646 / 2
 
         self.compressor_factor = 0.3 # How efficient is the compressor? Costs this much energy per unit of removed heat energy.
 
