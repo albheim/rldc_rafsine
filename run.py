@@ -36,6 +36,7 @@ def run(
 
     loglevel = 1,
     verbose = 0,
+    restore = None,
 ):
     # Register env with ray
     tune.register_env("DCEnv", DCEnv)
@@ -62,6 +63,30 @@ def run(
             "job_p": job_p,
         },
 
+        "model": {
+            "custom_model": model,
+            "custom_model_config": {
+                "n_servers": 360,
+                "activation": "elu", 
+                "n_hidden": 64, 
+                "rack_inject": True, 
+                "conv_filter_size": 11, 
+                "filter_size": 5,
+                "n_conv_layers": 1, 
+                "n_conv_hidden": 3,
+                "n_crah_layers": 1,
+                "n_value_layers": 2,
+                "crah_input": "other",
+                "value_input": "all",
+            },
+        },
+
+        # Agent settings
+        "vf_clip_param": 1000.0,
+        "entropy_coeff": 0,
+        "kl_target": 0.01,
+        "clip_param": 0.3,
+
         # Worker setup
         "num_workers": n_envs, # How many workers are spawned, ppo use this many envs and data is aggregated from all
         "num_envs_per_worker": 1, # How many envs on each worker? Can be used to vectorize, probably same as num_workers?
@@ -77,60 +102,45 @@ def run(
         "output": output,
 
         # Training
+        # "train_batch_size": n_envs * horizon, # Collects batch of data from different workes, does min/max/avg over it and trains on it
         "train_batch_size": n_envs * horizon, # Collects batch of data from different workes, does min/max/avg over it and trains on it
         "rollout_fragment_length": horizon, # How much data is colelcted by each worker before sending in data for training
+        "metrics_smoothing_episodes": 1, # 
 
         # Data settings
         #"observation_filter": "MeanStdFilter", # Test this
         #"normalize_actions": True,
+
+        # Evaluation
+        # "evaluation_num_workers": 1,
+        # "evaluation_interval": 10, # Every n times we train we also evaluate
+        # "evaluation_num_episodes": 24 * 3600 // horizon, # One day
+        # "evaluation_config": {
+        #     "env_config": {
+        #         "break_after": 40000,
+        #     }
+        # }
     }
-    # Trainer specific configs
-    trainer_config = {
-        # Model
-        "model": {
-            "custom_model": model,
-            "custom_model_config": {
-                "n_servers": tune_config["env_config"].get("n_servers", 360),
-                "activation": "elu", #tune.choice(["relu", "tanh", "elu"]),
-                "n_hidden": 64, #tune.choice([32, 128, 512]),
-                "rack_inject": True, #tune.choice([True, False]), # If true, pre is injected into server conv
-                "conv_filter_size": 11, #tune.choice([1, 5, 11]),
-                "filter_size": 5,
-                "n_conv_layers": 1, #tune.choice([0, 1, 3]),
-                "n_conv_hidden": 3, #tune.choice([1, 3]),
-                "n_crah_layers": 1, #tune.choice([0, 1, 3]),
-                "n_value_layers": 2, #tune.choice([0, 1]),
-                "crah_input": "other", #tune.choice(["all", "other"]),
-                "value_input": "all", #tune.choice(["all", "other"]),
-            },
-        },
-
-        # Agent settings
-        "vf_clip_param": 1000.0, #tune.choice([1.0, 10.0, 100.0, 1000.0]), # Set this to be around the size of value function? Git issue about this not being good, just set high?
-        "entropy_coeff": 0, #tune.choice([0, 1]),
-        "kl_target": 0.01, #tune.choice([0.01, 0.001, 0.1]),
-        "clip_param": 0.3, #tune.choice([0.3, 0.03, 3]),
-
-    }
-
-    tune_config.update(trainer_config)
 
     # Update specific configs for temporary testing
     if hyperopt:
         # tune_config["env_config"]["loglevel"] = 1 
 
         # tune_config["lr"] = tune.grid_search([0.0001, 0.05])
-        tune_config["model"]["custom_model_config"]["rack_inject"] = tune.choice([True, False])
-        tune_config["model"]["custom_model_config"]["train_batch_size"] = tune.choice([200, 1000, 5000])
-        tune_config["model"]["custom_model_config"]["n_hidden"] = tune.choice([16, 64, 512])
-        tune_config["model"]["custom_model_config"]["conv_filter_size"] = tune.choice([3, 7, 11, 15])
-        tune_config["model"]["custom_model_config"]["n_conv_layers"] = tune.choice([1, 2, 3])
-        tune_config["model"]["custom_model_config"]["activation"] = tune.choice(["relu", "tanh", "elu"])
+        tune_config["horizon"] = tune.choice([20, 100, 200])
+        tune_config["num_workers"] = tune.choice([1, 2, 5, 10])
+        # tune_config["model"]["custom_model_config"]["rack_inject"] = tune.choice([True, False])
+        # tune_config["model"]["custom_model_config"]["train_batch_size"] = tune.choice([200, 1000, 5000])
+        # tune_config["model"]["custom_model_config"]["n_hidden"] = tune.choice([16, 64, 512])
+        # tune_config["model"]["custom_model_config"]["conv_filter_size"] = tune.choice([3, 7, 11, 15])
+        # tune_config["model"]["custom_model_config"]["n_conv_layers"] = tune.choice([1, 2, 3])
+        # tune_config["model"]["custom_model_config"]["activation"] = tune.choice(["relu", "tanh", "elu"])
 
 
     analysis = tune.run(
         alg, 
         config=tune_config,
+
         stop={
             "timesteps_total": timesteps,
         }, 
@@ -145,8 +155,12 @@ def run(
         metric="episode_reward_mean",
         mode="max",
 
-        checkpoint_freq=1000, # 200 horizon means checkpoint at every 200k?
+        # Checkpointing
+        checkpoint_freq=100, # 200 horizon? or is it on training iterations that are 8 * 200 long?
         checkpoint_at_end=True,
+        restore = restore,
+
+        # Printing
         verbose=verbose,
     )
     
