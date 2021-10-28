@@ -5,7 +5,7 @@ def parse_all():
 
     # Env settings
     parser.add_argument("--rafsine", action="store_true", help="If flag is set the rafsine backend will be used, otherwise the simple simulation is used.")
-    parser.add_argument("--crah_out_setpoint", type=float, default=22)
+    parser.add_argument("--crah_out_setpoint", type=float, default=19)
     parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
     parser.add_argument("--n_bins", type=int, default=0)
     parser.add_argument("--break_after", type=float, default=-1)
@@ -20,7 +20,7 @@ def parse_all():
     parser.add_argument("--tag", type=str, default="default")
     parser.add_argument("--n_envs", type=int, default=1) # envs for each ppo agent
     parser.add_argument("--timesteps", type=int, default=500000)
-    #parser.add_argument("--resume", type=str, default="", help="String with path to run to resume.")
+    parser.add_argument("--restore", type=str, default=None, help="String with path to checkpoint dir")
     parser.add_argument("--n_samples", type=int, default=1)
     parser.add_argument("--horizon", type=int, default=200)
     parser.add_argument("--output", type=str, default=None)
