@@ -4,7 +4,7 @@ import gym
 from dc.servers import Servers
 from dc.crah import CRAH
 from loads.workloads import RandomArrival
-from loads.temperatures import SinusTemperature
+from loads.temperatures import CSVTemperature, SinusTemperature
 
 class DCEnv(gym.Env):
     def __init__(self, config={}):
@@ -14,7 +14,7 @@ class DCEnv(gym.Env):
         self.overheat_cost = config.get("overheat_cost", 1.0)
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
         self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
-        self.log_individual_servers = config.get("log_full", False)
+        self.loglevel = config.get("loglevel", 1)
         self.n_bins = config.get("n_bins", 0)
         self.break_after = config.get("break_after", -1)
 
@@ -41,12 +41,14 @@ class DCEnv(gym.Env):
         if "load_generator" in config:
             self.load_generator = config["load_generator"]()
         else:
-            self.load_generator = RandomArrival(20, duration=self.dt * config.get("avg_load", 200) * self.n_servers / (20 * 0.5), p=0.5)
+            self.load_generator = RandomArrival(20, duration=self.dt * config.get("avg_load", 200) * self.n_servers / (20 * 0.5), p=config.get("job_p", 0.5))
 
         # Outdoor temp
-        outdoor_temp = config.get("outdoor_temp", [20, 2])
+        outdoor_temp = config.get("outdoor_temp", "loads/ltu_temp.csv")
         if callable(outdoor_temp): # Callable registered with tune that creates temperature object
             self.outdoor_temp = outdoor_temp()
+        elif type(outdoor_temp) == str:
+            self.outdoor_temp = CSVTemperature(outdoor_temp)
         else:
             self.outdoor_temp = SinusTemperature(offset=outdoor_temp[0], amplitude=outdoor_temp[1])
 
@@ -94,7 +96,7 @@ class DCEnv(gym.Env):
             "load": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
             "temp_out": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
             "outdoor_temp": gym.spaces.Box(-1, 1, shape=(1,)),
-            "job": gym.spaces.Box(-1, 1, shape=(1,)),
+            "job": gym.spaces.Box(0, 1, shape=(1,)), # We want to use 0 jobs to kill gradient, so no rescale here
         }
         observation_spaces_env = {
             "load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
@@ -113,8 +115,12 @@ class DCEnv(gym.Env):
         self.observation_space_env = gym.spaces.Tuple(tuple(map(observation_spaces_env.__getitem__, self.observations)))
 
     def seed(self, seed):
-        self.load_generator.seed(seed)
-        self.outdoor_temp.seed(seed)
+        # env0 will always be seeded the same, env1 has +1 and so on
+        self.seed = seed 
+        self.rng = np.random.default_rng(seed)
+        hour_offset = self.rng.integers(low=0, high=24) # Maybe good to have random offset when trainign? Maybe less realistic?
+        self.load_generator.seed(seed, hour_offset)
+        self.outdoor_temp.seed(seed, hour_offset)
         
     def reset(self):
         self.time = 0
@@ -122,7 +128,7 @@ class DCEnv(gym.Env):
         self.servers.reset(self.outdoor_temp(self.time))
         self.crah.reset(self.outdoor_temp(self.time))
 
-        self.flowsim.reset(self.servers, self.crah, self.outdoor_temp(self.time))
+        self.flowsim.reset(self.servers, self.crah)
 
         total_energy = (self.servers.fan_power + self.crah.fan_power + self.crah.compressor_power) * self.dt
         self.total_energy_cost = self.energy_cost * total_energy 
