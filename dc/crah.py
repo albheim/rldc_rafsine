@@ -34,4 +34,4 @@ class CRAH:
 
         # If Tamb < Tout compressor is off
         # Assumes Tin > Tout which should always hold for stationary conditions but maybe could be broken if Tout changes too much too quickly.
-        self.compressor_power = self.compressor_factor * np.sum((outdoor_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (temp_in - self.temp_out))
+        self.compressor_power = self.compressor_factor * np.sum(np.maximum(0, self.air_vol_heatcap * self.flow * (outdoor_temp - self.temp_out)))
