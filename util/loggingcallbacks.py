@@ -93,5 +93,8 @@ class LoggingCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"env{worker_index}/cost/energy"] = env.total_energy_cost
             episode.custom_metrics[f"env{worker_index}/cost/misplaced"] = env.total_job_misplace_cost
             episode.custom_metrics[f"env{worker_index}/cost/temp_cold_isle"] = env.total_overheat_cost
+            episode.custom_metrics[f"env{worker_index}/cost/total"] = env.total_energy_cost + env.total_job_misplace_cost + env.total_overheat_cost
             
             episode.custom_metrics[f"env{worker_index}/other/outdoor_temp"] = env.outdoor_temp(env.time)
+
+            
