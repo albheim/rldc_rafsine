@@ -19,16 +19,18 @@ class SinusTemperature:
 
 class CSVTemperature:
     def __init__(self, path):
-        self.start_idx = 0
         # Hourly averages since 2016-10-16 00:00 to 2021-10-15 23:00
-        self.data = pd.read_csv(path, sep=";", decimal=",")["Timmedel"].to_numpy()
+        self.data = pd.read_csv(path, sep=";", decimal=".")["Timmedel"].to_numpy()
+        self.total_days = 16
     
     def seed(self, seed, hour_offset=0):
         self.rng = np.random.default_rng(seed)
         # self.start_idx = hour_offset + 24 * self.rng.integers(low=0, high=len(self.data) // 24)
-        start_idx = 33220 + hour_offset # Will generate data from summer with temp in 10-20 range
-        self.data = self.data[start_idx:start_idx+24*10]
+        #start_idx = 33220 # For ltu data
+        start_idx = 285 
+        self.data = self.data[start_idx:start_idx+24*self.total_days]
     
     def __call__(self, t):
+        t %= self.total_days*24*3600
         temp = np.interp(t/3600, range(len(self.data)), self.data)
         return temp

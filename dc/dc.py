@@ -44,7 +44,7 @@ class DCEnv(gym.Env):
             self.load_generator = RandomArrival(20, duration=self.dt * config.get("avg_load", 200) * self.n_servers / (20 * 0.5), p=config.get("job_p", 0.5))
 
         # Outdoor temp
-        outdoor_temp = config.get("outdoor_temp", "loads/ltu_temp.csv")
+        outdoor_temp = config.get("outdoor_temp", "loads/smhi_temp.csv")
         if callable(outdoor_temp): # Callable registered with tune that creates temperature object
             self.outdoor_temp = outdoor_temp()
         elif type(outdoor_temp) == str:
