@@ -28,6 +28,7 @@ def parse_all():
 
     # Other settings
     parser.add_argument("--loglevel", type=int, default=1, help="0 no extra, 1 most stuff, 2 all stuff")
+    parser.add_argument("--verbose", type=int, default=1)
 
     args = parser.parse_args()
     return args

@@ -46,9 +46,11 @@ class LoggingCallbacks(DefaultCallbacks):
             episode.hist_data[f"env{worker_index}/flows"] = env.servers.flow.tolist()
             episode.hist_data[f"env{worker_index}/inlet_temps"] = env.flowsim.server_temp_in.tolist()
             episode.hist_data[f"env{worker_index}/outlet_temps"] = env.flowsim.server_temp_out.tolist()
+            # What I really want is more like
+            # episode.hist_data[f"env{worker_index}/loads"] = [i for (i, load) in enumerate(env.servers.load) for _ in range(load)]
 
-            # for i in range(env.n_servers):
-            #     episode.custom_metrics[f"env{worker_index}/srv{i}/load"] = env.servers.load[i]
+            for i in range(env.n_servers):
+                episode.custom_metrics[f"env{worker_index}/srv{i}/load"] = env.servers.load[i]
             #     episode.custom_metrics[f"env{worker_index}/srv{i}/temp_cpu"] = env.servers.temp_cpu[i]
             #     episode.custom_metrics[f"env{worker_index}/srv{i}/flow"] = env.servers.flow[i]
             #     episode.custom_metrics[f"env{worker_index}/srv{i}/temp_in"] = env.flowsim.server_temp_in[i]
