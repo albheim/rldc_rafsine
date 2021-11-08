@@ -15,12 +15,13 @@ class CRAH:
         self.max_fan_power = 750 #2646 / 2
 
         self.compressor_factor = 0.3 # How efficient is the compressor? Costs this much energy per unit of removed heat energy.
+        self.flow_factor = 2 # How much additional flow that is created by the unmodeled parts of the cooling system (water, free cooler fans...)
 
     def reset(self, outdoor_temp):
         self.flow = self.min_flow * np.ones(self.n_crah)
         self.temp_out = 22 * np.ones(self.n_crah)
 
-        self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
+        self.fan_power = np.sum(self.max_fan_power * (self.flow_factor * self.flow / self.max_flow)**3)
 
         # If Tamb < Tout compressor is off, else it extracts the energy flowing through by using an equal amount of energy
         self.compressor_power = self.compressor_factor * np.sum((outdoor_temp > self.temp_out) * self.air_vol_heatcap * self.flow * (outdoor_temp - self.temp_out))
