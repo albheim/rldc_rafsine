@@ -10,7 +10,9 @@ from util.parsing import parse_all
 from util.loggingcallbacks import LoggingCallbacks 
 from dc.dc import DCEnv
 from models.serverconv import ServerConvNetwork
+from models.serveronlyconv import ServerOnlyConvNetwork
 from models.serverconv2d import ServerConv2DNetwork
+from models.crahonly import CRAHOnlyNetwork
 from models.emptynet import EmptyNetwork
 
 def run(
@@ -42,9 +44,26 @@ def run(
     tune.register_env("DCEnv", DCEnv)
 
     # Register model with ray
-    ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
-    ModelCatalog.register_custom_model("serverconv2d", ServerConv2DNetwork)
-    ModelCatalog.register_custom_model("baseline", EmptyNetwork)
+    if model == "serverconv":
+        ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
+        actions = ["server", "crah_out", "crah_flow"]
+        observations = ["temp_out", "load", "outdoor_temp", "job"]
+    elif model == "serveronlyconv":
+        ModelCatalog.register_custom_model("serveronlyconv", ServerOnlyConvNetwork)
+        actions = ["server"]
+        observations = ["temp_out", "load", "job"]
+    elif model == "serverconv2d":
+        ModelCatalog.register_custom_model("serverconv2d", ServerConv2DNetwork)
+        actions = ["server", "crah_out", "crah_flow"]
+        observations = ["temp_out", "load", "outdoor_temp", "job"]
+    elif model == "crahonly":
+        ModelCatalog.register_custom_model("crahonly", CRAHOnlyNetwork)
+        actions = ["crah_out", "crah_flow"]
+        observations = ["temp_out", "load", "outdoor_temp"]
+    elif model == "baseline":
+        ModelCatalog.register_custom_model("baseline", EmptyNetwork)
+        actions = ["none"]
+        observations = ["temp_out", "load", "outdoor_temp", "job"]
 
     # Some common config
     tune_config = {
@@ -53,7 +72,8 @@ def run(
         "env_config": {
             "rafsine_flow": rafsine,
             "seed": seed,
-            "baseline": model == "baseline",
+            "actions": actions,
+            "observations": observations,
             "crah_out_setpoint": crah_out_setpoint,
             "crah_flow_setpoint": crah_flow_setpoint,
             "avg_load": avg_load,
@@ -71,7 +91,6 @@ def run(
                 "n_hidden": 64, 
                 "rack_inject": True, 
                 "conv_filter_size": 11, 
-                "filter_size": 5,
                 "n_conv_layers": 1, 
                 "n_conv_hidden": 3,
                 "n_crah_layers": 1,
@@ -79,6 +98,7 @@ def run(
                 "crah_input": "other",
                 "value_input": "all",
             },
+            "use_lstm": False,
         },
 
         # Agent settings
@@ -98,14 +118,14 @@ def run(
         "callbacks": LoggingCallbacks,
         "soft_horizon": True,
         "no_done_at_end": True,
-        "horizon": horizon, # Decides length of episodes, should for now be same as rollout_frament_length
+        "horizon": horizon, # Decides length of episodes for logdata collection, should for now be same as rollout_frament_length
         "output": output,
 
         # Training
         # "train_batch_size": n_envs * horizon, # Collects batch of data from different workes, does min/max/avg over it and trains on it
         "train_batch_size": n_envs * horizon, # Collects batch of data from different workes, does min/max/avg over it and trains on it
         "rollout_fragment_length": horizon, # How much data is colelcted by each worker before sending in data for training
-        "metrics_smoothing_episodes": 1, # 
+        "metrics_smoothing_episodes": 1, # rolling avg
 
         # Data settings
         #"observation_filter": "MeanStdFilter", # Test this
@@ -126,9 +146,12 @@ def run(
     if hyperopt:
         # tune_config["env_config"]["loglevel"] = 1 
 
-        # tune_config["lr"] = tune.grid_search([0.0001, 0.05])
-        tune_config["horizon"] = tune.choice([20, 100, 200])
         tune_config["num_workers"] = tune.choice([1, 2, 5, 10])
+        tune_config["lr"] = tune.grid_search([0.0001, 0.05])
+        tune_config["vf_clip_param"] = tune.choice([1, 10, 1000, 1000])
+        tune_config["entropy_coeff"] = tune.choice([0, 0.01, 0.1, 1])
+        tune_config["kl_target"] = tune.choice([0.001, 0.01, 0.1])
+        tune_config["clip_param"] = tune.choice([0.01, 0.1, 0.5, 1.0])
         # tune_config["model"]["custom_model_config"]["rack_inject"] = tune.choice([True, False])
         # tune_config["model"]["custom_model_config"]["train_batch_size"] = tune.choice([200, 1000, 5000])
         # tune_config["model"]["custom_model_config"]["n_hidden"] = tune.choice([16, 64, 512])
@@ -173,7 +196,6 @@ if __name__ == "__main__":
     ray.init(address="auto")
 
     args = parse_all()
-
     analysis = run(**vars(args))
 
 # best_trial = analysis.best_trial  # Get best trial

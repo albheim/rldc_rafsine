@@ -29,7 +29,7 @@ class DCEnv(gym.Env):
         self.n_crah = self.flowsim.n_crah
 
         nu = 1.568e-5 # Kinematic viscosity of air (m^2/s)
-        k = 2.624e-2 # Thermal conductivity (W/m K)
+        k = 2.624e-2 # Thermal conductivity (W/(m*K))
         Pr = 0.707 # Prandtl number of air
         air_vol_heatcap = Pr * k / nu 
         R = 3 / air_vol_heatcap
@@ -41,7 +41,8 @@ class DCEnv(gym.Env):
         if "load_generator" in config:
             self.load_generator = config["load_generator"]()
         else:
-            self.load_generator = RandomArrival(20, duration=self.dt * config.get("avg_load", 200) * self.n_servers / (20 * 0.5), p=config.get("job_p", 0.5))
+            job_p = config.get("job_p", 0.5)
+            self.load_generator = RandomArrival(20, duration=self.dt * config.get("avg_load", 200) * self.n_servers / (20 * job_p), p=job_p)
 
         # Outdoor temp
         outdoor_temp = config.get("outdoor_temp", "loads/smhi_temp.csv")
@@ -52,8 +53,8 @@ class DCEnv(gym.Env):
         else:
             self.outdoor_temp = SinusTemperature(offset=outdoor_temp[0], amplitude=outdoor_temp[1])
 
-        self.actions = ["none"] if config.get("baseline", False) else ["server", "crah_out", "crah_flow"]
-        self.observations = ["temp_out", "load", "outdoor_temp", "job"]
+        self.actions = config.get("actions", ["server", "crah_out", "crah_flow"])
+        self.observations = config.get("observations", ["temp_out", "load", "outdoor_temp", "job"])
 
         self.server_placement_indices = config.get("place_load_indices", range(0, self.n_servers))
 

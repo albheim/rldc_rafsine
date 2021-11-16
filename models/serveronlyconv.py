@@ -6,12 +6,12 @@ from ray.rllib.utils import try_import_tf
 
 tf, tf2, _ = try_import_tf()
 tf = tf2
-class ServerConvNetwork(TFModelV2):
+class ServerOnlyConvNetwork(TFModelV2):
     # https://docs.ray.io/en/master/rllib-models.html#more-examples-for-building-custom-models
 
     def __init__(self, obs_space, action_space, num_outputs, model_config, name, **kwargs):
         obs_space = obs_space.original_space if hasattr(obs_space, "original_space") else obs_space
-        super(ServerConvNetwork, self).__init__(
+        super(ServerOnlyConvNetwork, self).__init__(
             obs_space, action_space, num_outputs, model_config, name)
 
         #fixed_input = tf.keras.layers.Input(tensor=tf.constant([1, 2, 3, 4]))
@@ -31,11 +31,10 @@ class ServerConvNetwork(TFModelV2):
         # add constant tensor for height of each server?
         server_inputs = [input_load, input_temp]
 
-        input_outdoor_temp = tf.keras.layers.Input(shape=(1,))
         input_job = tf.keras.layers.Input(shape=(1,))
-        other_inputs = [input_outdoor_temp, input_job]
+        other_inputs = [input_job]
 
-        all_conc = tf.keras.layers.Concatenate()([input_outdoor_temp] + server_inputs)
+        all_conc = tf.keras.layers.Concatenate()(server_inputs)
 
         # Server inputs to racks * servers * params
         server_reshaped = [tf.keras.layers.Reshape((-1, 1))(layer) for layer in server_inputs]
@@ -49,22 +48,13 @@ class ServerConvNetwork(TFModelV2):
         conv_flattened = tf.keras.layers.Flatten(name="server_out")(conv_server_out)
         placement_out = tf.keras.layers.Multiply()([conv_flattened, input_job]) # Removes gradient if zero job was placed
 
-        # Crah settings
-        crah_dense = all_conc
-        for i in range(n_crah_layers):
-            crah_dense = tf.keras.layers.Dense(n_hidden, activation=activation, name=f"crah_dense{i}")(crah_dense)
-        crah_dense_out = tf.keras.layers.Dense(4 * n_crah, name="crah_out")(crah_dense)
-
-        # Full action distribution information
-        action_out = tf.keras.layers.Concatenate(name="action_out")([placement_out, crah_dense_out])
-
         # Value net
         value_dense = all_conc
         for i in range(n_value_layers):
             value_dense = tf.keras.layers.Dense(n_hidden, activation=activation, name=f"value_dense{i}")(value_dense)
         value_out = tf.keras.layers.Dense(1, name="value_out")(value_dense)
 
-        self.base_model = tf.keras.Model(inputs=server_inputs + other_inputs, outputs=[action_out, value_out])
+        self.base_model = tf.keras.Model(inputs=server_inputs + other_inputs, outputs=[placement_out, value_out])
         #self.base_model.summary()
         #self.register_variables(self.base_model.variables)
 
