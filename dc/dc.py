@@ -12,6 +12,7 @@ class DCEnv(gym.Env):
         self.energy_cost = config.get("energy_cost", 0.00001)
         self.job_misplace_cost = config.get("job_misplace_cost", 100.0)
         self.overheat_cost = config.get("overheat_cost", 1.0)
+        self.load_variance_cost = config.get("load_variance_cost", 0.0) # Around 0.0001 seems reasonable, but does not seem to do very well. 
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
         self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
         self.loglevel = config.get("loglevel", 1)
@@ -57,6 +58,7 @@ class DCEnv(gym.Env):
         self.observations = config.get("observations", ["temp_out", "load", "outdoor_temp", "job"])
 
         self.server_placement_indices = config.get("place_load_indices", range(0, self.n_servers))
+        self.autoplace = config.get("autoplace", None)
 
         # Gym environment stuff
         # Generate all individual action spaces
@@ -90,12 +92,16 @@ class DCEnv(gym.Env):
         observation_spaces = {
             "load": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
             "temp_out": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
+            "temp_in": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
+            "flow": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
             "outdoor_temp": gym.spaces.Box(-100, 100, shape=(1,)),
             "job": gym.spaces.Box(-100, 100, shape=(1,)),
         }
         observation_spaces_target = {
             "load": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
             "temp_out": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
+            "temp_in": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
+            "flow": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
             "outdoor_temp": gym.spaces.Box(-1, 1, shape=(1,)),
             "job": gym.spaces.Box(0, 1, shape=(1,)), # We want to use 0 jobs to kill gradient, so no rescale here
         }
@@ -103,6 +109,8 @@ class DCEnv(gym.Env):
             "load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
             #"temp_out": gym.spaces.Box(-10, self.servers.max_temp_cpu+10, shape=(self.n_servers,)),
             "temp_out": gym.spaces.Box(15, 85, shape=(self.n_servers,)),
+            "temp_in": gym.spaces.Box(10, 40, shape=(self.n_servers,)),
+            "flow": gym.spaces.Box(self.servers.min_flow, self.servers.max_flow, shape=(self.n_servers,)),
             "outdoor_temp": gym.spaces.Box(0, 30, shape=(1,)),
             "job": gym.spaces.Box(0, 1, shape=(1,)),
             #"job": gym.spaces.Box(np.array(self.load_generator.min_values()), np.array(self.load_generator.max_values())),
@@ -135,6 +143,7 @@ class DCEnv(gym.Env):
         self.total_energy_cost = self.energy_cost * total_energy 
         self.total_job_misplace_cost = self.job_misplace_cost * self.servers.misplaced_jobs
         self.total_overheat_cost = self.overheat_cost * self.servers.overheated_inlets
+        self.total_load_variance_cost = self.load_variance_cost * np.var(self.servers.load)
 
         self.job = self.load_generator(self.time)
 
@@ -156,8 +165,14 @@ class DCEnv(gym.Env):
         elif "server" in action:
             placement = action.get("server")
         else:
-            placement = self.server_placement_indices[np.argmin(self.servers.load[self.server_placement_indices])]
-            #placement = self.server_placement_indices[np.argmin(self.flowsim.server_temp_out[self.server_placement_indices])]
+            if self.autoplace == "minload":
+                placement = self.server_placement_indices[np.argmin(self.servers.load[self.server_placement_indices])]
+            elif self.autoplace == "minflow":
+                placement = self.server_placement_indices[np.argmin(self.servers.flow[self.server_placement_indices])]
+            elif self.autoplace == "mintempout":
+                placement = self.server_placement_indices[np.argmin(self.flowsim.server_temp_out[self.server_placement_indices])]
+            else:
+                raise "no valid value for autoplace"
 
         self.time += self.dt
 
@@ -184,7 +199,8 @@ class DCEnv(gym.Env):
         # avg_temp_in = np.dot(self.flowsim.server_temp_in, self.servers.flow) / np.sum(self.servers.flow)
         # self.total_overheat_cost = 10 * max(0, avg_temp_in - 27)
         self.total_overheat_cost = self.overheat_cost * np.mean(np.maximum(0, self.flowsim.server_temp_in - 27))
-        total_cost = self.total_energy_cost + self.total_job_misplace_cost + self.total_overheat_cost
+        self.total_load_variance_cost = self.load_variance_cost * np.var(self.servers.load)
+        total_cost = self.total_energy_cost + self.total_job_misplace_cost + self.total_overheat_cost + self.total_load_variance_cost
         reward = -total_cost
 
         state = self.get_state()
