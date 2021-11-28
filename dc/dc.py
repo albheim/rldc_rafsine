@@ -14,10 +14,9 @@ class DCEnv(gym.Env):
         self.overheat_cost = config.get("overheat_cost", 1.0)
         self.load_variance_cost = config.get("load_variance_cost", 0.0) # Around 0.0001 seems reasonable, but does not seem to do very well. 
         self.crah_out_setpoint = config.get("crah_out_setpoint", 22)
-        self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8)
         self.loglevel = config.get("loglevel", 1)
-        self.n_bins = config.get("n_bins", 0)
         self.break_after = config.get("break_after", -1)
+        self.placement_block_size = config.get("placement_block_size", 1)
 
         if config.get("rafsine_flow", False):
             from dc.rafsineflow import RafsineFlow
@@ -38,12 +37,17 @@ class DCEnv(gym.Env):
         self.servers = Servers(self.n_servers, air_vol_heatcap, R)
         self.crah = CRAH(self.n_crah, air_vol_heatcap)
 
+        self.crah_flow_setpoint = config.get("crah_flow_setpoint", 0.8) * self.crah.max_flow
+        self.crah_flow_efficiency = np.ones(self.n_crah)
+
         # Jobs
         if "load_generator" in config:
             self.load_generator = config["load_generator"]()
         else:
             job_p = config.get("job_p", 0.5)
-            self.load_generator = RandomArrival(20, duration=self.dt * config.get("avg_load", 200) * self.n_servers / (20 * job_p), p=job_p)
+            # job_pf = lambda t: job_p - 0.8 * job_p * (t > 24*3600) # Why is this hard?
+            job_load = config.get("job_load", 20) # Used to be 20
+            self.load_generator = RandomArrival(job_load, duration=self.dt * config.get("avg_load", 200) * self.n_servers / (job_load * job_p), p=job_p)
 
         # Outdoor temp
         outdoor_temp = config.get("outdoor_temp", "loads/smhi_temp.csv")
@@ -54,7 +58,7 @@ class DCEnv(gym.Env):
         else:
             self.outdoor_temp = SinusTemperature(offset=outdoor_temp[0], amplitude=outdoor_temp[1])
 
-        self.actions = config.get("actions", ["server", "crah_out", "crah_flow"])
+        self.actions = config.get("actions", ["place", "crah_out", "crah_flow"])
         self.observations = config.get("observations", ["temp_out", "load", "outdoor_temp", "job"])
 
         self.server_placement_indices = config.get("place_load_indices", range(0, self.n_servers))
@@ -62,58 +66,48 @@ class DCEnv(gym.Env):
 
         # Gym environment stuff
         # Generate all individual action spaces
-        if self.n_bins == 0:
-            action_spaces_agent = {
-                "none": gym.spaces.Discrete(2), # If running with other algorithms
-                "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
-                "server": gym.spaces.Discrete(self.flowsim.n_servers), 
-                "crah_out": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
-                "crah_flow": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
-            }
-            action_spaces_env = {
-                "none": gym.spaces.Discrete(2),
-                "rack": gym.spaces.Discrete(self.flowsim.n_racks), 
-                "server": gym.spaces.Discrete(self.flowsim.n_servers), 
-                "crah_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(self.n_crah,)),
-                "crah_flow": gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(self.n_crah,)),
-            }
-            # Put it together based on chosen actions
-            self.action_space = gym.spaces.Tuple(tuple(map(action_spaces_agent.__getitem__, self.actions)))
-            self.action_space_env = gym.spaces.Tuple(tuple(map(action_spaces_env.__getitem__, self.actions)))
-        else:
-            self.action_space = gym.spaces.MultiDiscrete([self.flowsim.n_servers, self.n_bins, self.n_bins])
-            self.action_spaces_env = gym.spaces.Tuple((
-                gym.spaces.Discrete(self.flowsim.n_servers), 
-                gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(self.n_crah,)),
-                gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(self.n_crah,)),
-            ))
+        assert self.flowsim.servers_per_rack % self.placement_block_size == 0 
+        blocks = self.flowsim.n_servers // self.placement_block_size
+        action_spaces_agent = {
+            "none": gym.spaces.Discrete(2), # If running with other algorithms
+            "place": gym.spaces.Discrete(blocks), 
+            "crah_out": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
+            "crah_flow": gym.spaces.Box(-1, 1, shape=(self.n_crah,)),
+        }
+        action_spaces_env = {
+            "none": gym.spaces.Discrete(2),
+            "place": gym.spaces.Discrete(blocks), 
+            "crah_out": gym.spaces.Box(self.crah.min_temp, self.crah.max_temp, shape=(self.n_crah,)),
+            "crah_flow": gym.spaces.Box(self.crah.min_flow, self.crah.max_flow, shape=(self.n_crah,)),
+        }
+        # Put it together based on chosen actions
+        self.action_space = gym.spaces.Tuple(tuple(map(action_spaces_agent.__getitem__, self.actions)))
+        self.action_space_env = gym.spaces.Tuple(tuple(map(action_spaces_env.__getitem__, self.actions)))
 
         # All individual observation spaces
         observation_spaces = {
-            "load": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
-            "temp_out": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
-            "temp_in": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
-            "flow": gym.spaces.Box(-100, 100, shape=(self.n_servers,)),
+            "load": gym.spaces.Box(-100, 100, shape=(blocks,)),
+            "temp_out": gym.spaces.Box(-100, 100, shape=(blocks,)),
+            "temp_in": gym.spaces.Box(-100, 100, shape=(blocks,)),
+            "flow": gym.spaces.Box(-100, 100, shape=(blocks,)),
             "outdoor_temp": gym.spaces.Box(-100, 100, shape=(1,)),
             "job": gym.spaces.Box(-100, 100, shape=(1,)),
         }
         observation_spaces_target = {
-            "load": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
-            "temp_out": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
-            "temp_in": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
-            "flow": gym.spaces.Box(-1, 1, shape=(self.n_servers,)),
+            "load": gym.spaces.Box(-1, 1, shape=(blocks,)),
+            "temp_out": gym.spaces.Box(-1, 1, shape=(blocks,)),
+            "temp_in": gym.spaces.Box(-1, 1, shape=(blocks,)),
+            "flow": gym.spaces.Box(-1, 1, shape=(blocks,)),
             "outdoor_temp": gym.spaces.Box(-1, 1, shape=(1,)),
             "job": gym.spaces.Box(0, 1, shape=(1,)), # We want to use 0 jobs to kill gradient, so no rescale here
         }
         observation_spaces_env = {
-            "load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(self.n_servers,)),
-            #"temp_out": gym.spaces.Box(-10, self.servers.max_temp_cpu+10, shape=(self.n_servers,)),
-            "temp_out": gym.spaces.Box(15, 85, shape=(self.n_servers,)),
-            "temp_in": gym.spaces.Box(10, 40, shape=(self.n_servers,)),
-            "flow": gym.spaces.Box(self.servers.min_flow, self.servers.max_flow, shape=(self.n_servers,)),
+            "load": gym.spaces.Box(self.servers.idle_load, self.servers.max_load, shape=(blocks,)),
+            "temp_in": gym.spaces.Box(18, 27, shape=(blocks,)),
+            "temp_out": gym.spaces.Box(15, 85, shape=(blocks,)),
+            "flow": gym.spaces.Box(self.servers.min_flow, self.servers.max_flow, shape=(blocks,)),
             "outdoor_temp": gym.spaces.Box(0, 30, shape=(1,)),
             "job": gym.spaces.Box(0, 1, shape=(1,)),
-            #"job": gym.spaces.Box(np.array(self.load_generator.min_values()), np.array(self.load_generator.max_values())),
         }
         # Put it together based on chosen observations
         # The real space is just made bigger than the target to fit anything that falls outside, only needed for ray to be happy
@@ -157,13 +151,18 @@ class DCEnv(gym.Env):
         clipped_action = map(lambda x: self.clip_action(*x), zip(action, self.action_space))
         rescaled_action = map(lambda x: self.scale_to(*x), zip(clipped_action, self.action_space, self.action_space_env))
         action = dict(zip(self.actions, rescaled_action))
-        if "rack" in action:
-            rack_placement = action.get("rack")
-            start = rack_placement * self.flowsim.servers_per_rack
-            end = (rack_placement + 1) * self.flowsim.servers_per_rack
-            placement = start + np.argmin(self.servers.load[start:end])
-        elif "server" in action:
-            placement = action.get("server")
+        if "place" in action:
+            block_placement = action.get("place")
+            start_idx = block_placement * self.placement_block_size
+            end_idx = (block_placement + 1) * self.placement_block_size
+            if self.autoplace == "minload":
+                placement = start_idx + np.argmin(self.servers.load[start_idx:end_idx])
+            elif self.autoplace == "minflow":
+                placement = start_idx + np.argmin(self.servers.flow[start_idx:end_idx])
+            elif self.autoplace == "mintempout":
+                placement = start_idx + np.argmin(self.servers.temp_out[start_idx:end_idx])
+            else:
+                raise "no valid value for autoplace"
         else:
             if self.autoplace == "minload":
                 placement = self.server_placement_indices[np.argmin(self.servers.load[self.server_placement_indices])]
@@ -179,10 +178,16 @@ class DCEnv(gym.Env):
         self.servers.update(self.time, self.dt, placement, self.job[0], self.job[1], self.flowsim.server_temp_in)
 
         # Update CRAH fans
-        crah_temp = action.get("crah_out", self.crah_out_setpoint * np.ones(4))
-        crah_flow = action.get("crah_flow", self.crah_flow_setpoint * self.crah.max_flow * np.ones(4))
         if self.break_after >= 0 and self.time >= self.break_after:
-            crah_flow[0] = 0
+            flow_efficiency = 0.5
+            crah_idx = 0
+            self.crah.max_flow = self.crah.max_flow * np.ones(self.n_crah)
+            self.crah.max_flow[crah_idx] *= flow_efficiency
+            self.crah_flow_efficiency[crah_idx] *= flow_efficiency
+            self.break_after = -1
+        crah_temp = action.get("crah_out", self.crah_out_setpoint * np.ones(4))
+        crah_flow = action.get("crah_flow", self.crah_flow_setpoint * np.ones(4))
+        crah_flow *= self.crah_flow_efficiency
         self.crah.update(crah_temp, crah_flow, self.flowsim.crah_temp_in, self.outdoor_temp(self.time))
 
         # Run simulation based on current boundary condition
@@ -211,10 +216,12 @@ class DCEnv(gym.Env):
         Return a tuple of rescaled observations based on selected observations in self.observations
         """
         states = {
-            "load": self.servers.load,
-            "temp_out": self.flowsim.server_temp_out,
-            "outdoor_temp": self.outdoor_temp(self.time),
+            "load": np.mean(self.servers.load.reshape((-1, self.placement_block_size)), axis=1),
+            "temp_out": np.mean(self.flowsim.server_temp_out.reshape((-1, self.placement_block_size)), axis=1),
+            "temp_in": np.mean(self.flowsim.server_temp_in.reshape((-1, self.placement_block_size)), axis=1),
+            "flow": np.mean(self.servers.flow.reshape((-1, self.placement_block_size)), axis=1),
             "job": 0 if self.job == (0, 0) else 1,
+            "outdoor_temp": self.outdoor_temp(self.time),
         }
         state = tuple(map(lambda x: self.scale_to(*x), zip(
             map(states.__getitem__, self.observations), 
@@ -228,8 +235,6 @@ class DCEnv(gym.Env):
         """
         if isinstance(original_range, gym.spaces.Box): # Both are box
             return (x - original_range.low) * (target_range.high - target_range.low) / (original_range.high - original_range.low) + target_range.low
-        elif isinstance(target_range, gym.spaces.Box): # Target is box
-            return x / (self.n_bins - 1) * (target_range.high - target_range.low) + target_range.low
         else: # Otherwise don't rescale
             return x
 

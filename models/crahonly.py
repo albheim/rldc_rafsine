@@ -43,7 +43,7 @@ class CRAHOnlyNetwork(TFModelV2):
         # Rack based input
         rack_mean_vals = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=2))(server_concat)
         #conv_rack_out = tf.keras.layers.Conv2D(1, (1, n_servers // n_racks), activation=activation, name="conv_rack_for_crah")(server_concat)
-        rack_flattened = tf.keras.layers.Flatten(name="rack_conv_out")(rack_mean_vals)
+        rack_flattened = tf.keras.layers.Flatten(name="rack_flattened")(rack_mean_vals)
 
         # Server based inputs
         server_mean_vals = tf.keras.layers.Lambda(lambda x: tf.keras.backend.mean(x, axis=1))(rack_mean_vals)
@@ -74,7 +74,7 @@ class CRAHOnlyNetwork(TFModelV2):
         value_out = tf.keras.layers.Dense(1, name="value_out")(value_dense)
 
         self.base_model = tf.keras.Model(inputs=server_inputs + other_inputs, outputs=[action_out, value_out])
-        #self.base_model.summary()
+        self.base_model.summary()
         #self.register_variables(self.base_model.variables)
 
     @override(ModelV2)

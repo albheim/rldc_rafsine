@@ -45,7 +45,7 @@ class Servers:
         self.flow = new_flow
         self.overheated_inlets = np.sum(temp_in > 27)
         
-        self.fan_power = np.sum(self.max_fan_power * (self.flow / self.max_flow)**3)
+        self.fan_power = np.sum(self.max_fan_power * np.power(self.flow / self.max_flow, 3))
 
         self.misplaced_jobs = 0
         if load != 0:

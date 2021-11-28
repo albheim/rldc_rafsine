@@ -14,7 +14,7 @@ class CRAH:
         # Assume it is twice as effective
         self.max_fan_power = 750 #2646 / 2
 
-        self.compressor_factor = 0.3 # How efficient is the compressor? Costs this much energy per unit of removed heat energy.
+        self.compressor_factor = 0.3 # Inverse of coefficient of performance for the compressor
         self.flow_factor = 2 # How much additional flow that is created by the unmodeled parts of the cooling system (water, free cooler fans...)
 
     def reset(self, outdoor_temp):

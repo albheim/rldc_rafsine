@@ -35,7 +35,7 @@ class LoggingCallbacks(DefaultCallbacks):
 
         # Just to be consistent with earlier logging
         worker_index = worker.worker_index - 1
-        if worker_index != 0:
+        if worker_index != 0: # Only log single env for ppo
             return
         
         # Log server, this takes a lot of memory so turned off most of the time
@@ -93,7 +93,8 @@ class LoggingCallbacks(DefaultCallbacks):
             episode.custom_metrics[f"env{worker_index}/cost/energy"] = env.total_energy_cost
             episode.custom_metrics[f"env{worker_index}/cost/misplaced"] = env.total_job_misplace_cost
             episode.custom_metrics[f"env{worker_index}/cost/temp_cold_isle"] = env.total_overheat_cost
-            episode.custom_metrics[f"env{worker_index}/cost/total"] = env.total_energy_cost + env.total_job_misplace_cost + env.total_overheat_cost
+            episode.custom_metrics[f"env{worker_index}/cost/load_variance"] = env.total_load_variance_cost
+            episode.custom_metrics[f"env{worker_index}/cost/total"] = env.total_energy_cost + env.total_job_misplace_cost + env.total_overheat_cost + env.total_load_variance_cost
             
             episode.custom_metrics[f"env{worker_index}/other/outdoor_temp"] = env.outdoor_temp(env.time)
 

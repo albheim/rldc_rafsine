@@ -7,8 +7,8 @@ def parse_all():
     parser.add_argument("--rafsine", action="store_true", help="If flag is set the rafsine backend will be used, otherwise the simple simulation is used.")
     parser.add_argument("--crah_out_setpoint", type=float, default=19)
     parser.add_argument("--crah_flow_setpoint", type=float, default=0.8)
-    parser.add_argument("--n_bins", type=int, default=0)
     parser.add_argument("--break_after", type=float, default=-1)
+    parser.add_argument("--autoplace", type=str, default="minload")
 
     parser.add_argument("--avg_load", type=float, default=100)
     parser.add_argument("--job_p", type=float, default=0.5, help="Probability that a job arrives each time instance.")

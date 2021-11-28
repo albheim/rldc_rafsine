@@ -13,14 +13,16 @@ from models.serverconv import ServerConvNetwork
 from models.serveronlyconv import ServerOnlyConvNetwork
 from models.serverconv2d import ServerConv2DNetwork
 from models.crahonly import CRAHOnlyNetwork
+from models.crahonlyoutdoors import CRAHOnlyOutdoorsNetwork
+from models.simpleconv import SimpleConvNetwork
 from models.emptynet import EmptyNetwork
 
 def run(
     rafsine = False,
     crah_out_setpoint = 22.0,
     crah_flow_setpoint = 0.8,
-    n_bins = 0,
     break_after = -1.0,
+    autoplace = "minload",
 
     avg_load = 100.0,
     job_p = 0.5,
@@ -46,24 +48,39 @@ def run(
     # Register model with ray
     if model == "serverconv":
         ModelCatalog.register_custom_model("serverconv", ServerConvNetwork)
-        actions = ["server", "crah_out", "crah_flow"]
+        actions = ["place", "crah_out", "crah_flow"]
         observations = ["temp_out", "load", "outdoor_temp", "job"]
+        placement_block_size = 1
     elif model == "serveronlyconv":
         ModelCatalog.register_custom_model("serveronlyconv", ServerOnlyConvNetwork)
-        actions = ["server"]
-        observations = ["temp_out", "load", "job"]
+        actions = ["place"]
+        observations = ["flow", "load", "job"]
+        placement_block_size = 15
     elif model == "serverconv2d":
         ModelCatalog.register_custom_model("serverconv2d", ServerConv2DNetwork)
-        actions = ["server", "crah_out", "crah_flow"]
+        actions = ["place", "crah_out", "crah_flow"]
         observations = ["temp_out", "load", "outdoor_temp", "job"]
+        placement_block_size = 1
     elif model == "crahonly":
         ModelCatalog.register_custom_model("crahonly", CRAHOnlyNetwork)
         actions = ["crah_out", "crah_flow"]
         observations = ["temp_out", "load", "outdoor_temp"]
+        placement_block_size = 1
+    elif model == "crahonlyoutdoors":
+        ModelCatalog.register_custom_model("crahonlyoutdoors", CRAHOnlyOutdoorsNetwork)
+        actions = ["crah_out", "crah_flow"]
+        observations = ["outdoor_temp"]
+        placement_block_size = 1
     elif model == "baseline":
         ModelCatalog.register_custom_model("baseline", EmptyNetwork)
         actions = ["none"]
         observations = ["temp_out", "load", "outdoor_temp", "job"]
+        placement_block_size = 1
+    elif model == "simpleconv":
+        ModelCatalog.register_custom_model("simpleconv", EmptyNetwork)
+        actions = ["place", "crah_out", "crah_flow"]
+        observations = ["temp_in", "load", "outdoor_temp", "job"]
+        placement_block_size = 15
 
     # Some common config
     tune_config = {
@@ -78,9 +95,10 @@ def run(
             "crah_flow_setpoint": crah_flow_setpoint,
             "avg_load": avg_load,
             "loglevel": loglevel,
-            "n_bins": n_bins,
             "break_after": break_after,
             "job_p": job_p,
+            "autoplace": autoplace,
+            "placement_block_size": placement_block_size,
         },
 
         "model": {
@@ -90,13 +108,14 @@ def run(
                 "activation": "elu", 
                 "n_hidden": 64, 
                 "rack_inject": True, 
-                "conv_filter_size": 11, 
+                "conv_filter_size": 1, 
                 "n_conv_layers": 1, 
                 "n_conv_hidden": 3,
                 "n_crah_layers": 1,
                 "n_value_layers": 2,
                 "crah_input": "other",
                 "value_input": "all",
+                "placement_block_size": placement_block_size,
             },
             "use_lstm": False,
         },
