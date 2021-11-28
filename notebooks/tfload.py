@@ -54,8 +54,8 @@ def get_tblogs(data_path):
 def extract_data(df):
     # Convert power to kw
     compressor = df.filter(regex=".*power/compressor").to_numpy() / 1000
-    server_fan = df.filter(regex=".*power/server_fan").to_numpy() / 1000
-    crah_fan = df.filter(regex=".*power/crah_fan").to_numpy() / 1000
+    total_server_fan = df.filter(regex=".*power/server_fan").to_numpy() / 1000
+    total_crah_fan = df.filter(regex=".*power/crah_fan").to_numpy() / 1000
     total_server_load = df.filter(regex=".*power/total_server_load").to_numpy() / 1000
     server_loads = [df.filter(regex=f".*srv{i}/load").to_numpy() for i in range(360)]
     server_inlets = [df.filter(regex=f".*srv{i}/temp_in").to_numpy() for i in range(360)]
@@ -69,13 +69,15 @@ def extract_data(df):
 
     time = df.index.to_numpy() / (3600 * 24)
 
-    total_cooling_power = (compressor+server_fan+crah_fan)
-    total_power = (compressor+server_fan+crah_fan+total_server_load)
-    it_power = (server_fan+total_server_load)
+    total_cooling_power = (compressor+total_server_fan+total_crah_fan)
+    total_power = (compressor+total_server_fan+total_crah_fan+total_server_load)
+    it_power = (total_server_fan+total_server_load)
     pue = total_power / it_power
     
     return {
         "time": time, 
+        "total_crah_fan": total_crah_fan,
+        "total_server_fan": total_server_fan,
         "total_server_load": total_server_load,
         "server_loads": server_loads,
         "server_inlets": server_inlets,
