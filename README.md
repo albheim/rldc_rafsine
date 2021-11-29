@@ -13,7 +13,7 @@ The exact versions used can be seen in `versions.txt` and has been tested using 
 ## Ray setup 
 First you start the ray daemon depending on your cluster. For a local one-node cluster this is done with
 ```
-ray start --head --num-cpus=X
+ray start --head --num-cpus=X --num-gpus=Y
 ```
 where it can be nice to not use all cpus for ray so that tensorboard can work in the background.
 
@@ -22,7 +22,7 @@ For a cluster with multiple nodes there are resources on the ray website.
 ## Run the training
 Finally the simulation is run with 
 ```python
-python3 main.py
+python3 run.py <args>
 ```
 where there are some optional parameters available among which we have
 ```
