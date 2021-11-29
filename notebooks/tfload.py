@@ -47,8 +47,10 @@ def get_tblogs(data_path):
         print("Error: more than one experiments with that id found")
     df = tflog2pandas(exp_path[0])
     df = df.pivot(index="step", columns="metric")
-    df_mean = df.filter(regex=(".*(custom_metrics|reward).*_mean"))
-    df_mean = df_mean.rename(columns={x: x[24:-5] if "custom_metrics" in x else x[9:-5] for _,x in df.columns})
+    #df_mean = df.filter(regex=(".*(custom_metrics|reward).*_mean"))
+    #df_mean = df_mean.rename(columns={x: x[24:-5] if "custom_metrics" in x else x[9:-5] for _,x in df.columns})
+    df_mean = df.filter(regex=(".*(custom_metrics|reward).*_mean|.*loss"))
+    df_mean = df.rename(columns={x: x[:-5] if "_mean" in x else x for _,x in df.columns})
     return df_mean
 
 def extract_data(df):
@@ -65,6 +67,8 @@ def extract_data(df):
     reward = df.filter(regex=".*reward").to_numpy()
     crah_out_temps = [df.filter(regex=f".*crah{i}/temp_out").to_numpy() for i in range(4)]
     outdoor_temp = df.filter(regex=".*outdoor_temp").to_numpy()
+    policy_loss = df.filter(regex=".*policy_loss").to_numpy()
+    value_loss = df.filter(regex=".*vf_loss").to_numpy()
                       
 
     time = df.index.to_numpy() / (3600 * 24)
@@ -91,4 +95,6 @@ def extract_data(df):
         "reward": reward,
         "crah_out_temps": crah_out_temps,
         "outdoor_temp": outdoor_temp,
+        "policy_loss": policy_loss,
+        "value_loss": value_loss,
     }

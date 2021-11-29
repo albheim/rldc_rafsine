@@ -1,15 +1,14 @@
-# DC-sim
+# Reinforcement Learning on DC simulations
 
-This is a toolbox for simulating the heat loop in a small datacenter. It has two backends, first a very simple one described [here]() and then 
-a more complex CFD based one described [here]()
+This is a toolbox for simulating the heat loop in a small datacenter and providing standard bindings for an RL environment to it. 
+It has two backends, first a very simple one described [here](https://dl.acm.org/doi/10.1145/3447555.3466581) and then a more complex CFD based one described [here]().
 
 ## Installation
-Clone this repo to you local drive and install the packages defined in `requirements.txt` using any desired method.
+Clone this repo to you local drive and install the packages defined in `requirements.txt` using any desired method, for example
 ```
 pip install -r requirements.txt
 ``` 
-
-It has been tested in conda envs using python 3.8.10
+The exact versions used can be seen in `versions.txt` and has been tested using python 3.6.9 in a linux environment.
 
 ## Ray setup 
 First you start the ray daemon depending on your cluster. For a local one-node cluster this is done with

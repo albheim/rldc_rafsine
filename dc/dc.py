@@ -179,11 +179,10 @@ class DCEnv(gym.Env):
 
         # Update CRAH fans
         if self.break_after >= 0 and self.time >= self.break_after:
-            flow_efficiency = 0.5
+            flow_efficiency = 0.8
             crah_idx = 0
-            self.crah.max_flow = self.crah.max_flow * np.ones(self.n_crah)
-            self.crah.max_flow[crah_idx] *= flow_efficiency
             self.crah_flow_efficiency[crah_idx] *= flow_efficiency
+            self.crah.max_flow *= self.crah_flow_efficiency
             self.break_after = -1
         crah_temp = action.get("crah_out", self.crah_out_setpoint * np.ones(4))
         crah_flow = action.get("crah_flow", self.crah_flow_setpoint * np.ones(4))
